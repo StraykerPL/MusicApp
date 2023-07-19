@@ -1,7 +1,9 @@
-export default function GeneralLayout(children) {
+import { StyleSheet, View } from "react-native";
+
+export default function GeneralLayout(props) {
     return(
         <View style={componentStyles}>
-            {children}
+            {props.children}
         </View>
     );
 }
