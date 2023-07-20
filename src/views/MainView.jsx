@@ -19,12 +19,12 @@ export default function MainView() {
 
     useEffect(() => {
         getAllMusicFilesToState();
-    });
+    }, []);
 
     return(
         <SafeAreaProvider style={componentStyles}>
             <GeneralLayout>
-                <SoundPanel musicName={"Here will be name"} musicAuthor={"Here will be author"} musicAsset={musicFileList[0]}></SoundPanel>
+                <SoundPanel musicAsset={musicFileList[0]}></SoundPanel>
             </GeneralLayout>
         </SafeAreaProvider>
     );

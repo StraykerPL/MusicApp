@@ -23,12 +23,12 @@ export default function SoundPanel(props) {
         setupSoundAsset();
         return () => soundBuffor.unloadAsync();
     }, []);
-
+    
     return(
         <View style={componentStyles.soundPanel}>
             <View style={componentStyles.soundPanel.metaData}>
-                <Text>{props.musicName}</Text>
-                <Text>{props.musicAuthor}</Text>
+                <Text>{props.musicAsset.filename}</Text>
+                {/* <Text>{props.musicAsset.musicAuthor}</Text> */}
             </View>
             <View style={componentStyles.soundPanel.controlButtons}>
                 <AntDesign.Button name="caretright" size={16} color="white" onPress={play} />
