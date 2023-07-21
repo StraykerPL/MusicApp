@@ -4,6 +4,7 @@ import GeneralLayout from '../components/GeneralLayout';
 import SoundPanel from '../components/SoundPanel';
 import { useEffect, useState } from 'react';
 import * as MediaLibrary from 'expo-media-library';
+import MusicList from '../components/MusicList';
 
 export default function MainView() {
     const [musicFileList, setMusicFileList] = useState([]);
@@ -24,6 +25,7 @@ export default function MainView() {
     return(
         <SafeAreaProvider style={componentStyles}>
             <GeneralLayout>
+                <MusicList list={musicFileList}></MusicList>
                 <SoundPanel musicAsset={musicFileList[0]}></SoundPanel>
             </GeneralLayout>
         </SafeAreaProvider>

@@ -4,7 +4,7 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import { Audio } from 'expo-av';
 
 export default function SoundPanel(props) {
-    const [soundBuffor, setSoundBuffor] = useState(undefined);
+    const [soundBuffor, setSoundBuffor] = useState();
 
     const setupSoundAsset = async () => {
         const sound = await Audio.Sound.createAsync(props.musicAsset);
@@ -60,6 +60,7 @@ const componentStyles = StyleSheet.create({
         metaData: {
             display: "flex",
             flexDirection: "column",
+            maxWidth: 150
         },
         controlButtons: {
             display: "flex",
