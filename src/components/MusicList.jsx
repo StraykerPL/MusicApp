@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View, Button } from 'react-native';
 
 export default function MusicList(props) {
     const [displayLoader, setDisplayLoader] = useState(true);
@@ -11,9 +11,20 @@ export default function MusicList(props) {
     }, [props.list]);
 
     return(
-        <View>
+        <View style={componentStyles.listBox}>
             {displayLoader === true ? <ActivityIndicator size={"large"} /> :
-            <FlatList data={props.list} renderItem={({item}) => <Text>{item.filename}</Text>} />}
+            <FlatList data={props.list} renderItem={({item}) => <Button title={item.filename}></Button>} />}
         </View>
     );
 }
+
+const componentStyles = StyleSheet.create({
+    listBox: {
+        width: 300,
+        height: "95%",
+        border: "1 solid black",
+        borderRadius: 50,
+        backgroundColor: "grey",
+        padding: 30
+    }
+});

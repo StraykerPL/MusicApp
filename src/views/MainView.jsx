@@ -32,7 +32,7 @@ export default function MainView() {
 }
 
 const componentStyles = StyleSheet.create({
-    paddingTop: 25,
+    paddingTop: 30,
     viewContainer: {
         flex: 1,
         alignItems: "center"
