@@ -1,10 +1,9 @@
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native';
-import GeneralLayout from '../components/GeneralLayout';
-import SoundPanel from '../components/SoundPanel';
+import { StyleSheet, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import * as MediaLibrary from 'expo-media-library';
 import MusicList from '../components/MusicList';
+import SoundPanel from '../components/SoundPanel';
 
 export default function MainView() {
     const [musicFileList, setMusicFileList] = useState([]);
@@ -24,16 +23,21 @@ export default function MainView() {
 
     return(
         <SafeAreaProvider style={componentStyles}>
-            <GeneralLayout>
-                <MusicList list={musicFileList}></MusicList>
+            <View style={componentStyles.viewContainer}>
+                <View style={componentStyles.listElement}><MusicList list={musicFileList}></MusicList></View>
                 <SoundPanel musicAsset={musicFileList[0]}></SoundPanel>
-            </GeneralLayout>
+            </View>
         </SafeAreaProvider>
     );
 }
 
 const componentStyles = StyleSheet.create({
-    height: "100%",
-    width: "100%",
-    paddingTop: 25
+    paddingTop: 25,
+    viewContainer: {
+        flex: 1,
+        alignItems: "center"
+    },
+    listElement: {
+        flex: 1
+    }
 });
