@@ -7,14 +7,13 @@ import SoundPanel from '../components/SoundPanel';
 
 export default function MainView() {
     const [musicFileList, setMusicFileList] = useState([]);
+    const [selectedAssetName, setSelectedAssetName] = useState(undefined);
 
     const getAllMusicFilesToState = async () => {
         await MediaLibrary.requestPermissionsAsync();
-        const assetsList = await MediaLibrary.getAssetsAsync({
+        await MediaLibrary.getAssetsAsync({
             mediaType: MediaLibrary.MediaType.audio,
-        });
-
-        setMusicFileList(assetsList.assets);
+        }).then((assetsList) => { setMusicFileList(assetsList.assets); });
     };
 
     useEffect(() => {
@@ -24,8 +23,8 @@ export default function MainView() {
     return(
         <SafeAreaProvider style={componentStyles}>
             <View style={componentStyles.viewContainer}>
-                <View style={componentStyles.listElement}><MusicList list={musicFileList}></MusicList></View>
-                <SoundPanel musicAsset={musicFileList[0]}></SoundPanel>
+                <View style={componentStyles.listElement}><MusicList list={musicFileList} updateItem={setSelectedAssetName}></MusicList></View>
+                {selectedAssetName !== undefined ? <SoundPanel musicAsset={musicFileList[selectedAssetName]}></SoundPanel> : ""}
             </View>
         </SafeAreaProvider>
     );

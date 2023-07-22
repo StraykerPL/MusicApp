@@ -7,8 +7,12 @@ export default function SoundPanel(props) {
     const [soundBuffor, setSoundBuffor] = useState();
 
     const setupSoundAsset = async () => {
-        const sound = await Audio.Sound.createAsync(props.musicAsset);
-        setSoundBuffor(sound.sound);
+        await Audio.Sound.createAsync(props.musicAsset)
+            .then((sound) => {
+                setSoundBuffor(sound);
+            }, (error) => {
+                console.error(error);
+            });
     };
 
     const play = async () => {
@@ -21,13 +25,13 @@ export default function SoundPanel(props) {
 
     useEffect(() => {
         setupSoundAsset();
-        return () => soundBuffor.unloadAsync();
+        return () => soundBuffor?.unloadAsync();
     }, []);
-    
+
     return(
         <View style={componentStyles.soundPanel}>
             <View style={componentStyles.soundPanel.metaData}>
-                <Text>{props.musicAsset.filename}</Text>
+                <Text>{props.musicAsset?.filename}</Text>
                 {/* <Text>{props.musicAsset.musicAuthor}</Text> */}
             </View>
             <View style={componentStyles.soundPanel.controlButtons}>

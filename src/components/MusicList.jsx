@@ -13,7 +13,7 @@ export default function MusicList(props) {
     return(
         <View style={componentStyles.listBox}>
             {displayLoader === true ? <ActivityIndicator size={"large"} /> :
-            <FlatList data={props.list} renderItem={({item}) => <Button title={item.filename}></Button>} />}
+            <FlatList data={props.list} renderItem={({item}) => <Button title={item.filename} onPress={() => {}}></Button>} />}
         </View>
     );
 }
