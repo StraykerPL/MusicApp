@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import AntDesign from '@expo/vector-icons/AntDesign';
 import { Audio } from 'expo-av';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function SoundPanel(props) {
     const [soundBuffor, setSoundBuffor] = useState();
 
-    const setupSoundAsset = async () => {
-        await Audio.Sound.createAsync(props.musicAsset)
-            .then((sound) => {
-                setSoundBuffor(sound);
-            }, (error) => {
-                console.error(error);
-            });
+    const loadMusicAsset = async () => {
+        await soundBuffor.loadAsync(props.musicAsset);
     };
 
     const play = async () => {
+        const status = await soundBuffor.getStatusAsync();
+        if(!status.isLoaded) {
+            await loadMusicAsset();
+        }
+
         await soundBuffor.playAsync();
     };
 
@@ -24,9 +24,26 @@ export default function SoundPanel(props) {
     };
 
     useEffect(() => {
-        setupSoundAsset();
-        return () => soundBuffor?.unloadAsync();
+        setSoundBuffor(new Audio.Sound());
+        return () => {async () => { await soundBuffor.unloadAsync(); }}
     }, []);
+
+    useEffect(() => {    
+        async () => {
+            const status = await soundBuffor.getStatusAsync();
+            if (status.isLoaded) {
+                await soundBuffor.unloadAsync();
+            }
+
+            await loadMusicAsset();
+        };
+    }, [props.musicAsset]);
+
+    // useEffect(() => {
+    //     console.log("---- SoundPanel ----");
+    //     console.log("soundBuffor: " + soundBuffor);
+    //     console.log("musicAsset: " + props.musicAsset);
+    // });
 
     return(
         <View style={componentStyles.soundPanel}>
