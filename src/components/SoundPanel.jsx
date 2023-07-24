@@ -25,25 +25,15 @@ export default function SoundPanel(props) {
 
     useEffect(() => {
         setSoundBuffor(new Audio.Sound());
-        return () => {async () => { await soundBuffor.unloadAsync(); }}
+        return soundBuffor ? () => { soundBuffor.unloadAsync(); } : undefined;
     }, []);
 
     useEffect(() => {    
         async () => {
-            const status = await soundBuffor.getStatusAsync();
-            if (status.isLoaded) {
-                await soundBuffor.unloadAsync();
-            }
-
             await loadMusicAsset();
         };
+        return soundBuffor ? () => { soundBuffor.unloadAsync(); } : undefined;
     }, [props.musicAsset]);
-
-    // useEffect(() => {
-    //     console.log("---- SoundPanel ----");
-    //     console.log("soundBuffor: " + soundBuffor);
-    //     console.log("musicAsset: " + props.musicAsset);
-    // });
 
     return(
         <View style={componentStyles.soundPanel}>

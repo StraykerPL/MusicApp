@@ -38,15 +38,6 @@ export default function MainView() {
         return () => clearInterval(intervalId)
     }, [selectedAssetName]);
 
-    // useEffect(() => {
-    //     const intervalId = setInterval(() => {
-    //         console.log("---- MainView ----");
-    //         console.log("selectedAssetName: " + selectedAssetName);
-    //         console.log("currentlySelectedMusicAsset: " + currentlySelectedMusicAsset);
-    //     }, 1000)
-    //     return () => clearInterval(intervalId)
-    // });
-
     return(
         <SafeAreaProvider style={componentStyles}>
             <View style={componentStyles.viewContainer}>
