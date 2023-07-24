@@ -2,25 +2,28 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Audio } from 'expo-av';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import { SoundPanelPropsModel } from "src/shared/models/SoundPanelPropsModel";
+import { Sound } from "expo-av/build/Audio";
+import { Asset } from "expo-media-library";
 
-export default function SoundPanel(props) {
-    const [soundBuffor, setSoundBuffor] = useState();
+export default function SoundPanel({ musicAsset }: SoundPanelPropsModel) {
+    const [soundBuffor, setSoundBuffor] = useState<Sound>();
 
     const loadMusicAsset = async () => {
-        await soundBuffor.loadAsync(props.musicAsset);
+        await soundBuffor?.loadAsync(musicAsset as Asset);
     };
 
     const play = async () => {
-        const status = await soundBuffor.getStatusAsync();
-        if(!status.isLoaded) {
+        const status = await soundBuffor?.getStatusAsync();
+        if(!status?.isLoaded) {
             await loadMusicAsset();
         }
 
-        await soundBuffor.playAsync();
+        await soundBuffor?.playAsync();
     };
 
     const stop = async () => {
-        await soundBuffor.pauseAsync();
+        await soundBuffor?.pauseAsync();
     };
 
     useEffect(() => {
@@ -33,15 +36,15 @@ export default function SoundPanel(props) {
             await loadMusicAsset();
         };
         return soundBuffor ? () => { soundBuffor.unloadAsync(); } : undefined;
-    }, [props.musicAsset]);
+    }, [musicAsset]);
 
     return(
         <View style={componentStyles.soundPanel}>
-            <View style={componentStyles.soundPanel.metaData}>
-                <Text>{props.musicAsset?.filename}</Text>
+            <View style={componentStyles.metaData}>
+                <Text>{musicAsset?.filename}</Text>
                 {/* <Text>{props.musicAsset.musicAuthor}</Text> */}
             </View>
-            <View style={componentStyles.soundPanel.controlButtons}>
+            <View style={componentStyles.controlButtons}>
                 <AntDesign.Button name="caretright" size={16} color="white" onPress={play} />
                 <AntDesign.Button name="pause" size={16} color="white" onPress={stop} />
             </View>
@@ -68,14 +71,14 @@ const componentStyles = StyleSheet.create({
         shadowOpacity: 0.58,
         shadowRadius: 16.00,
         elevation: 24,
-        metaData: {
-            display: "flex",
-            flexDirection: "column",
-            maxWidth: 150
-        },
-        controlButtons: {
-            display: "flex",
-            flexDirection: "row"
-        }
+    },
+    metaData: {
+        display: "flex",
+        flexDirection: "column",
+        maxWidth: 150
+    },
+    controlButtons: {
+        display: "flex",
+        flexDirection: "row"
     }
 });

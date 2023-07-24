@@ -1,19 +1,21 @@
+import { Asset } from 'expo-media-library';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View, Button } from 'react-native';
+import { MusicListPropsModel } from 'src/shared/models/MusicListPropsModel';
 
-export default function MusicList(props) {
-    const [displayLoader, setDisplayLoader] = useState(true);
+export default function MusicList({ list, updateItem }: MusicListPropsModel) {
+    const [displayLoader, setDisplayLoader] = useState<boolean>(true);
 
     useEffect(() => {
-        if(props.list !== []) {
+        if(list.length === 0) {
             setDisplayLoader(false);
         }
-    }, [props.list]);
+    }, [list]);
 
     return(
         <View style={componentStyles.listBox}>
             {displayLoader === true ? <ActivityIndicator size={"large"} /> :
-            <FlatList data={props.list} renderItem={({item}) => <Button title={item.filename} onPress={() => props.updateItem(item.filename)}></Button>} keyExtractor={item => item.filename} />}
+            <FlatList data={list} renderItem={({ item }) => <Button title={item.filename} onPress={() => updateItem(item.filename)}></Button>} keyExtractor={(item: Asset) => item.filename} />}
         </View>
     );
 }
