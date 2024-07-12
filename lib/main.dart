@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'MusicApp',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'MusicApp'),
     );
   }
 }
@@ -58,48 +58,53 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
   final player = AudioPlayer();
-  List<FileSystemEntity> _files = [];
+  List<FileSystemEntity> _files1 = [];
+  List<FileSystemEntity> _files2 = [];
   List<FileSystemEntity> _songs = [];
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  String selectedSongPath = "";
 
   void getMusicFiles() {
     Permission.manageExternalStorage.request();
-    Directory dir = Directory('/storage/emulated/0/OK');
-    String mp3Path = dir.toString();
+    Directory dir1 = Directory('/storage/emulated/0/MicroSD/Muzyka');
+    Directory dir2 = Directory('/storage/emulated/0/MicroSD/Muzyka One Republic');
     
-    print(mp3Path);
     try {
-      _files = dir.listSync(recursive: true, followLinks: false);
+      _files1 = dir1.listSync(recursive: true, followLinks: false);
+      _files2 = dir2.listSync(recursive: true, followLinks: false);
     } catch (e) {
       print(e);
     }
 
-    for(FileSystemEntity entity in _files) {
+    for(FileSystemEntity entity in _files1) {
       String path = entity.path;
       if(path.endsWith('.mp3')) {
-        _songs.add(entity);
+        setState(() {
+          _songs.add(entity);
+        });
       }
     }
 
-    print(_songs);
-    print(_songs.length);
+    for(FileSystemEntity entity in _files2) {
+      String path = entity.path;
+      if(path.endsWith('.mp3')) {
+        setState(() {
+          _songs.add(entity);
+        });
+      }
+    }
   }
 
   void playSond(String songName) {
+    player.stop();
     player.setUrl(songName);
     player.play();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => getMusicFiles());
   }
 
   @override
@@ -120,38 +125,30 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-          ElevatedButton(
-            onPressed: () {
-              getMusicFiles();
+      body: Column (
+        children: [
+          _songs.isNotEmpty ? ListView.builder(
+            scrollDirection: Axis.vertical,
+            shrinkWrap: true,
+            itemCount: _songs.length,
+            prototypeItem: ListTile(
+              title: Text(_songs.first.path),
+            ),
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(_songs[index].path),
+                onTap: () => {
+                  selectedSongPath = _songs[index].path
+                },
+              );
             },
-            child: const Text('List Songs'),
-          ),
+          ) : const Text("Empty Music List"),
           ElevatedButton(
             onPressed: () {
-              playSond(_songs[0].path);
+              playSond(selectedSongPath);
             },
             child: const Text('Play'),
           )],
-        ),
       ),
     );
   }
