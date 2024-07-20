@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MusicApp',
+      title: 'Strayker Music',
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.dark,
-      home: const MyHomePage(title: 'MusicApp'),
+      home: const MyHomePage(title: 'Strayker Music'),
     );
   }
 }
@@ -41,7 +42,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final player = AudioPlayer();
   List<FileSystemEntity> _files1 = [];
   List<FileSystemEntity> _files2 = [];
-  List<FileSystemEntity> _songs = [];
+  final List<FileSystemEntity> _songs = [];
   String selectedSongPath = "";
 
   void getMusicFiles() {
@@ -113,6 +114,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
                   onPressed: () {
