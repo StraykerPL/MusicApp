@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:strayker_music/Models/music_file.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -40,38 +40,48 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final player = AudioPlayer();
-  List<FileSystemEntity> _files1 = [];
-  List<FileSystemEntity> _files2 = [];
-  final List<FileSystemEntity> _songs = [];
+  final List<MusicFile> _songs = [];
+  final List<String> directories = [
+    '/storage/emulated/0/MicroSD/Muzyka',
+    '/storage/emulated/0/MicroSD/Muzyka One Republic'
+  ];
+  List<FileSystemEntity> _files = [];
   String selectedSongPath = "";
 
-  void getMusicFiles() {
-    Permission.manageExternalStorage.request();
-    Directory dir1 = Directory('/storage/emulated/0/MicroSD/Muzyka');
-    Directory dir2 = Directory('/storage/emulated/0/MicroSD/Muzyka One Republic');
-    
-    try {
-      _files1 = dir1.listSync(recursive: true, followLinks: false);
-      _files2 = dir2.listSync(recursive: true, followLinks: false);
-    } catch (e) {
-      print(e);
-    }
+  String getFileName(String fullPath) {
+    String name = "";
 
-    for(FileSystemEntity entity in _files1) {
-      String path = entity.path;
-      if(path.endsWith('.mp3')) {
-        setState(() {
-          _songs.add(entity);
-        });
+    for(String directory in directories) {
+      if(fullPath.startsWith(directory)) {
+        name = fullPath.replaceAll("$directory/", "");
+        name = name.replaceAll(".mp3", "");
       }
     }
 
-    for(FileSystemEntity entity in _files2) {
-      String path = entity.path;
-      if(path.endsWith('.mp3')) {
-        setState(() {
-          _songs.add(entity);
-        });
+    return name;
+  }
+
+  void getMusicFiles() {
+    Permission.manageExternalStorage.request();
+
+    for(String fileSystemPath in directories) {
+      final Directory dir = Directory(fileSystemPath);
+
+      try {
+      _files = dir.listSync(recursive: true, followLinks: false);
+      } catch (e) {
+        debugPrint(e.toString());
+      }
+
+      for(FileSystemEntity entity in _files) {
+          if(entity.path.endsWith('.mp3')) {
+          final MusicFile newFile = MusicFile();
+          newFile.filePath = entity.path;
+          newFile.name = getFileName(newFile.filePath);
+          setState(() {
+            _songs.add(newFile);
+          });
+        }
       }
     }
   }
@@ -83,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void pauseSong() {
-    if (player.playing) {
+    if(player.playing) {
       player.pause();
     }
     else {
@@ -92,15 +102,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void playRandomMusic() {
-    int rand = Random().nextInt(_songs.length);
-    selectedSongPath = _songs[rand].path;
-    playSond(selectedSongPath);
+    playSond(_songs[Random().nextInt(_songs.length)].filePath);
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => getMusicFiles());
+    getMusicFiles();
   }
 
   @override
@@ -141,13 +149,13 @@ class _MyHomePageState extends State<MyHomePage> {
               shrinkWrap: true,
               itemCount: _songs.length,
               prototypeItem: ListTile(
-                title: Text(_songs.first.path),
+                title: Text(_songs.first.name),
               ),
               itemBuilder: (context, index) {
                 return ListTile(
-                  title: Text(_songs[index].path),
+                  title: Text(_songs[index].name),
                   onTap: () => {
-                    selectedSongPath = _songs[index].path
+                    selectedSongPath = _songs[index].filePath
                   },
                 );
               },
