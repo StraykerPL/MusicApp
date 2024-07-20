@@ -15,10 +15,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MusicApp',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark
+        ),
+        brightness: Brightness.dark,
         useMaterial3: true,
       ),
+      themeMode: ThemeMode.dark,
       home: const MyHomePage(title: 'MusicApp'),
     );
   }
@@ -109,24 +114,25 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             Row(
               children: [
-              ElevatedButton(
-                onPressed: () {
-                  playSond(selectedSongPath);
-                },
-                child: const Text('Play'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  pauseSong();
-                },
-                child: const Text('Pause'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  playRandomMusic();
-                },
-                child: const Text('Random'),
-              )],
+                ElevatedButton(
+                  onPressed: () {
+                    playSond(selectedSongPath);
+                  },
+                  child: const Text('Play'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    pauseSong();
+                  },
+                  child: const Text('Pause'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    playRandomMusic();
+                  },
+                  child: const Text('Random'),
+                )
+              ],
             ),
             _songs.isNotEmpty ? ListView.builder(
               physics: const NeverScrollableScrollPhysics(),
