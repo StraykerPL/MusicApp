@@ -1,9 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
-import 'package:strayker_music/Constants/constants.dart';
-import 'package:strayker_music/Models/music_file.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key, required this.title});
@@ -15,43 +12,12 @@ class MainView extends StatefulWidget {
 
 class _MainViewState extends State<MainView> {
   final SoundPlayer _soundPlayer = SoundPlayer();
-  final List<String> directories = [
-    '/storage/emulated/0/MicroSD/Muzyka',
-    '/storage/emulated/0/MicroSD/Muzyka One Republic'
-  ];
-  List<FileSystemEntity> _files = [];
+  final SoundFilesReader _filesReader = SoundFilesReader();
 
   @override
   void initState() {
     super.initState();
-    _soundPlayer.availableSongs = getMusicFiles();
-  }
-
-  List<MusicFile> getMusicFiles() {
-    Permission.manageExternalStorage.request();
-
-    List<MusicFile> songs = [];
-    for(String fileSystemPath in directories) {
-      final Directory dir = Directory(fileSystemPath);
-
-      try {
-        _files = dir.listSync(recursive: true, followLinks: false);
-      } catch (e) {
-        debugPrint(e.toString());
-      }
-
-      for(FileSystemEntity entity in _files) {
-        if(entity.path.endsWith(Constants.stringMp3Extension)) {
-          final MusicFile newFile = MusicFile();
-          newFile.filePath = entity.path;
-          setState(() {
-            songs.add(newFile);
-          });
-        }
-      }
-    }
-
-    return songs;
+    _soundPlayer.availableSongs = _filesReader.getMusicFiles();
   }
 
   @override
@@ -67,12 +33,6 @@ class _MainViewState extends State<MainView> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(
-                  onPressed: () {
-                    _soundPlayer.playSong();
-                  },
-                  child: const Text('Play'),
-                ),
                 ElevatedButton(
                   onPressed: () {
                     _soundPlayer.pauseSong();
