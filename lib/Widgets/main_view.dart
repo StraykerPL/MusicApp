@@ -1,8 +1,7 @@
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
@@ -15,18 +14,23 @@ class MainView extends StatefulWidget {
 }
 
 class _MainViewState extends State<MainView> {
-  final player = AudioPlayer();
-  final List<MusicFile> _songs = [];
+  final SoundPlayer _soundPlayer = SoundPlayer();
   final List<String> directories = [
     '/storage/emulated/0/MicroSD/Muzyka',
     '/storage/emulated/0/MicroSD/Muzyka One Republic'
   ];
   List<FileSystemEntity> _files = [];
-  String selectedSongPath = Constants.stringEmpty;
 
-  void getMusicFiles() {
+  @override
+  void initState() {
+    super.initState();
+    _soundPlayer.availableSongs = getMusicFiles();
+  }
+
+  List<MusicFile> getMusicFiles() {
     Permission.manageExternalStorage.request();
 
+    List<MusicFile> songs = [];
     for(String fileSystemPath in directories) {
       final Directory dir = Directory(fileSystemPath);
 
@@ -41,36 +45,13 @@ class _MainViewState extends State<MainView> {
           final MusicFile newFile = MusicFile();
           newFile.filePath = entity.path;
           setState(() {
-            _songs.add(newFile);
+            songs.add(newFile);
           });
         }
       }
     }
-  }
 
-  void playSond(String songName) {
-    player.stop();
-    player.setUrl(songName);
-    player.play();
-  }
-
-  void pauseSong() {
-    if(player.playing) {
-      player.pause();
-    }
-    else {
-      player.play();
-    }
-  }
-
-  void playRandomMusic() {
-    playSond(_songs[Random().nextInt(_songs.length)].filePath);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    getMusicFiles();
+    return songs;
   }
 
   @override
@@ -88,36 +69,36 @@ class _MainViewState extends State<MainView> {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    playSond(selectedSongPath);
+                    _soundPlayer.playSong();
                   },
                   child: const Text('Play'),
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    pauseSong();
+                    _soundPlayer.pauseSong();
                   },
                   child: const Text('Pause'),
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    playRandomMusic();
+                    _soundPlayer.playRandomMusic();
                   },
                   child: const Text('Random'),
                 )
               ],
             ),
-            _songs.isNotEmpty ? ListView.builder(
+            _soundPlayer.availableSongs.isNotEmpty ? ListView.builder(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemCount: _songs.length,
+              itemCount: _soundPlayer.availableSongs.length,
               prototypeItem: ListTile(
-                title: Text(_songs.first.name),
+                title: Text(_soundPlayer.availableSongs.first.name),
               ),
               itemBuilder: (context, index) {
                 return ListTile(
-                  title: Text(_songs[index].name),
+                  title: Text(_soundPlayer.availableSongs[index].name),
                   onTap: () => {
-                    selectedSongPath = _songs[index].filePath
+                    _soundPlayer.setCurrentSong(index)
                   },
                 );
               },
