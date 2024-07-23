@@ -22,7 +22,7 @@ class _MainViewState extends State<MainView> {
     _soundPlayer = SoundPlayer(songs: _filesReader.getMusicFiles());
   }
 
-  Row createControlPanelWidget() {
+  Row createControlPanelWidget(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -33,7 +33,9 @@ class _MainViewState extends State<MainView> {
                 _currentState = _soundPlayer.resumeOrPauseSong();
               });
             },
-            child: Text(_currentState == PlayerStateEnum.playing ? 'Pause' : 'Play'),
+            child: _currentState == PlayerStateEnum.playing ?
+              Icon(Icons.pause, color: Theme.of(context).colorScheme.primary, size: 24.0) :
+              Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary, size: 24.0)
           ),
         ElevatedButton(
           onPressed: () {
@@ -41,13 +43,13 @@ class _MainViewState extends State<MainView> {
               _currentState = _soundPlayer.playRandomMusic();
             });
           },
-          child: const Text('Random'),
+          child: Icon(Icons.shuffle, color: Theme.of(context).colorScheme.primary, size: 24.0),
         )
       ],
     );
   }
 
-  ListView createMusicListWidget() {
+  ListView createMusicListWidget(BuildContext context) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
@@ -58,6 +60,8 @@ class _MainViewState extends State<MainView> {
       itemBuilder: (context, index) {
         return ListTile(
           title: Text(_soundPlayer.availableSongs[index].name),
+          trailing: _soundPlayer.availableSongs[index] == _soundPlayer.currentlySelectedSong ?
+            Icon(Icons.music_note, color: Theme.of(context).colorScheme.primary, size: 24.0) : null,
           onTap: () => {
             setState(() {
               _currentState = _soundPlayer.selectAndPlaySong(index);
@@ -78,8 +82,10 @@ class _MainViewState extends State<MainView> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            createControlPanelWidget(),
-            _soundPlayer.availableSongs.isNotEmpty ? createMusicListWidget() : const Text("Empty Music List")
+            createControlPanelWidget(context),
+            _soundPlayer.availableSongs.isNotEmpty ?
+              createMusicListWidget(context) :
+              const Text("No files found, if you just assigned permission to the app, restart to load files.", softWrap: true,)
           ],
         ),
       ),

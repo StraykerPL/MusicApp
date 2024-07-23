@@ -6,15 +6,16 @@ import 'package:strayker_music/Models/music_file.dart';
 final class SoundPlayer {
   final _player = AudioPlayer();
   List<MusicFile> availableSongs = [];
-  late MusicFile currentlySelectedSong;
+  MusicFile? currentlySelectedSong;
 
   SoundPlayer({required List<MusicFile> songs}) {
     availableSongs = songs;
+    _player.setLoopMode(LoopMode.all);
   }
 
   PlayerStateEnum playSong() {
     _player.stop();
-    _player.setUrl(currentlySelectedSong.filePath);
+    _player.setUrl(currentlySelectedSong!.filePath);
     _player.play();
 
     return PlayerStateEnum.playing;
