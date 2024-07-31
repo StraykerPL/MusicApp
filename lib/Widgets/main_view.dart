@@ -20,30 +20,34 @@ class _MainViewState extends State<MainView> {
   void initState() {
     super.initState();
     _soundPlayer = SoundPlayer(songs: _filesReader.getMusicFiles());
+    _soundPlayer.availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
+  }
+
+  Icon getDefaultIconWidget(IconData iconToSet) {
+    return Icon(iconToSet, color: Theme.of(context).colorScheme.primary, size: 24.0);
   }
 
   Row createControlPanelWidget(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if(_currentState != PlayerStateEnum.musicNotLoaded)
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _currentState = _soundPlayer.resumeOrPauseSong();
-              });
-            },
-            child: _currentState == PlayerStateEnum.playing ?
-              Icon(Icons.pause, color: Theme.of(context).colorScheme.primary, size: 24.0) :
-              Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary, size: 24.0)
-          ),
+        ElevatedButton(
+          onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () => {
+            setState(() {
+              _currentState = _soundPlayer.resumeOrPauseSong();
+            })
+          },
+          child: _currentState == PlayerStateEnum.playing ?
+            getDefaultIconWidget(Icons.pause) :
+            getDefaultIconWidget(Icons.play_arrow)
+        ),
         ElevatedButton(
           onPressed: () {
             setState(() {
               _currentState = _soundPlayer.playRandomMusic();
             });
           },
-          child: Icon(Icons.shuffle, color: Theme.of(context).colorScheme.primary, size: 24.0),
+          child: getDefaultIconWidget(Icons.shuffle),
         )
       ],
     );
@@ -55,13 +59,17 @@ class _MainViewState extends State<MainView> {
       shrinkWrap: true,
       itemCount: _soundPlayer.availableSongs.length,
       prototypeItem: ListTile(
-        title: Text(_soundPlayer.availableSongs.first.name),
+        title: Text(
+          _soundPlayer.availableSongs.first.name,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+        ),
       ),
       itemBuilder: (context, index) {
         return ListTile(
           title: Text(_soundPlayer.availableSongs[index].name),
           trailing: _soundPlayer.availableSongs[index] == _soundPlayer.currentlySelectedSong ?
-            Icon(Icons.music_note, color: Theme.of(context).colorScheme.primary, size: 24.0) : null,
+            getDefaultIconWidget(Icons.music_note) : null,
           onTap: () => {
             setState(() {
               _currentState = _soundPlayer.selectAndPlaySong(index);
