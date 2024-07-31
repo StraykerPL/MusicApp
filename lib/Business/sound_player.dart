@@ -6,6 +6,7 @@ import 'package:strayker_music/Models/music_file.dart';
 final class SoundPlayer {
   final _player = AudioPlayer();
   List<MusicFile> availableSongs = [];
+  List<MusicFile> playedSongs = [];
   MusicFile? currentlySelectedSong;
 
   SoundPlayer({required List<MusicFile> songs}) {
@@ -35,9 +36,28 @@ final class SoundPlayer {
   }
 
   PlayerStateEnum playRandomMusic() {
-    currentlySelectedSong = availableSongs[Random().nextInt(availableSongs.length)];
+    while (true) {
+      MusicFile randomMusicFile = availableSongs[Random().nextInt(availableSongs.length)];
 
-    return playSong();
+      if(!playedSongs.contains(randomMusicFile)) {
+        if(playedSongs.length < 20) {
+          playedSongs.add(randomMusicFile);
+          currentlySelectedSong = randomMusicFile;
+
+          return playSong();
+        }
+        else if(playedSongs.length >= 20) {
+          playedSongs.removeAt(0);
+          playedSongs.add(randomMusicFile);
+          currentlySelectedSong = randomMusicFile;
+
+          return playSong();
+        }
+      }
+      else {
+        randomMusicFile = availableSongs[Random().nextInt(availableSongs.length)];
+      }
+    }
   }
 
   PlayerStateEnum selectAndPlaySong(int songIndex) {
