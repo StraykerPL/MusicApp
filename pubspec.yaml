@@ -38,6 +38,8 @@ dependencies:
   just_audio: ^0.9.38
   permission_handler: ^11.3.1
   flutter_native_splash: ^2.4.1
+  just_audio_background: ^0.0.1-beta.13
+  audio_session: ^0.1.21
 
 dev_dependencies:
   flutter_test:

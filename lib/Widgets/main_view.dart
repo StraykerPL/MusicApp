@@ -14,6 +14,7 @@ class MainView extends StatefulWidget {
 class _MainViewState extends State<MainView> {
   final SoundFilesReader _filesReader = SoundFilesReader();
   late final SoundPlayer _soundPlayer;
+  final ScrollController _musicListScrollControl = ScrollController();
   PlayerStateEnum _currentState = PlayerStateEnum.musicNotLoaded;
 
   @override
@@ -48,6 +49,14 @@ class _MainViewState extends State<MainView> {
             });
           },
           child: getDefaultIconWidget(Icons.shuffle),
+        ),
+        ElevatedButton(
+          onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () => {
+            _musicListScrollControl.jumpTo(
+              _musicListScrollControl.positions.last.maxScrollExtent
+            )
+          },
+          child: getDefaultIconWidget(Icons.music_note),
         )
       ],
     );
@@ -88,6 +97,7 @@ class _MainViewState extends State<MainView> {
         title: Text(widget.title),
       ),
       body: SingleChildScrollView(
+        controller: _musicListScrollControl,
         child: Column(
           children: [
             createControlPanelWidget(context),

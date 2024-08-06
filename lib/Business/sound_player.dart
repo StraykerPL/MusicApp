@@ -1,5 +1,7 @@
 import 'dart:math';
+import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:strayker_music/Constants/player_state_enum.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
@@ -8,16 +10,36 @@ final class SoundPlayer {
   List<MusicFile> availableSongs = [];
   List<MusicFile> playedSongs = [];
   MusicFile? currentlySelectedSong;
+  late AudioSession _session;
 
   SoundPlayer({required List<MusicFile> songs}) {
     availableSongs = songs;
     _player.setLoopMode(LoopMode.all);
+    AudioSession.instance.then((completedSession) {
+      completedSession.configure(const AudioSessionConfiguration.music());
+      _session = completedSession;
+      return completedSession;
+    });
   }
 
   PlayerStateEnum playSong() {
     _player.stop();
-    _player.setUrl(currentlySelectedSong!.filePath);
-    _player.play();
+    _session.setActive(true).then((onValue) {
+      if(onValue) {
+        _player.setAudioSource(
+          AudioSource.file(
+            currentlySelectedSong!.filePath,
+            tag: const MediaItem(
+              id: '1',
+              album: "Album name",
+              title: "Song name"
+            ),
+          )
+        ).whenComplete(() {
+          _player.play();
+        });
+      }
+    });
 
     return PlayerStateEnum.playing;
   }
