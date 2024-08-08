@@ -47,6 +47,7 @@ class _MainViewState extends State<MainView> {
   }
 
   Row createControlPanelWidget(BuildContext context) {
+    int index;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -70,8 +71,9 @@ class _MainViewState extends State<MainView> {
         ),
         ElevatedButton(
           onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () => {
+            index = _soundPlayer.availableSongs.indexOf(_soundPlayer.currentlySelectedSong!),
             _musicListScrollControl.jumpTo(
-              _musicListScrollControl.positions.last.maxScrollExtent
+              index * 50
             )
           },
           child: getDefaultIconWidget(Icons.music_note),
