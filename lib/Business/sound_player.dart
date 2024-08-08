@@ -29,10 +29,9 @@ final class SoundPlayer {
         _player.setAudioSource(
           AudioSource.file(
             currentlySelectedSong!.filePath,
-            tag: const MediaItem(
+            tag: MediaItem(
               id: '1',
-              album: "Album name",
-              title: "Song name"
+              title: currentlySelectedSong!.name,
             ),
           )
         ).whenComplete(() {

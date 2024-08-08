@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/player_state_enum.dart';
+import 'package:strayker_music/Models/music_file.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key, required this.title});
@@ -16,12 +17,29 @@ class _MainViewState extends State<MainView> {
   late final SoundPlayer _soundPlayer;
   final ScrollController _musicListScrollControl = ScrollController();
   PlayerStateEnum _currentState = PlayerStateEnum.musicNotLoaded;
+  bool _isSearchBoxVisible = false;
+  final _searchMusicInputController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _soundPlayer = SoundPlayer(songs: _filesReader.getMusicFiles());
     _soundPlayer.availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
+    _searchMusicInputController.addListener(onSearchInputChanged);
+  }
+
+  void onSearchInputChanged() {
+    List<MusicFile> filteredFiles = _filesReader.getMusicFiles();
+    filteredFiles.retainWhere((musicFile) => musicFile.name.contains(_searchMusicInputController.value.text));
+    setState(() {
+      _soundPlayer.availableSongs = filteredFiles;
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchMusicInputController.dispose();
+    super.dispose();
   }
 
   Icon getDefaultIconWidget(IconData iconToSet) {
@@ -57,7 +75,16 @@ class _MainViewState extends State<MainView> {
             )
           },
           child: getDefaultIconWidget(Icons.music_note),
-        )
+        ),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              _searchMusicInputController.clear();
+              _isSearchBoxVisible = !_isSearchBoxVisible;
+            });
+          },
+          child: getDefaultIconWidget(Icons.search),
+        ),
       ],
     );
   }
@@ -71,8 +98,9 @@ class _MainViewState extends State<MainView> {
         title: Text(
           _soundPlayer.availableSongs.first.name,
           maxLines: 1,
-          overflow: TextOverflow.fade,
-        ),
+          overflow: TextOverflow.ellipsis,
+          softWrap: true,
+        )
       ),
       itemBuilder: (context, index) {
         return ListTile(
@@ -101,6 +129,15 @@ class _MainViewState extends State<MainView> {
         child: Column(
           children: [
             createControlPanelWidget(context),
+            _isSearchBoxVisible ? SizedBox(
+              width: double.infinity,
+              child: TextField(
+                controller: _searchMusicInputController,
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+              ),
+            ) as Widget : const SizedBox.shrink(),
             _soundPlayer.availableSongs.isNotEmpty ?
               createMusicListWidget(context) :
               const Text("No files found, if you just assigned permission to the app, restart to load files.", softWrap: true,)
