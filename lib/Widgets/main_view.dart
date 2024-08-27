@@ -30,7 +30,7 @@ class _MainViewState extends State<MainView> {
 
   void onSearchInputChanged() {
     List<MusicFile> filteredFiles = _filesReader.getMusicFiles();
-    filteredFiles.retainWhere((musicFile) => musicFile.name.contains(_searchMusicInputController.value.text));
+    filteredFiles.retainWhere((musicFile) => musicFile.name.toUpperCase().contains(_searchMusicInputController.value.text.toUpperCase()));
     setState(() {
       _soundPlayer.availableSongs = filteredFiles;
     });
