@@ -43,14 +43,40 @@ class _MainViewState extends State<MainView> {
   }
 
   Icon getDefaultIconWidget(IconData iconToSet) {
-    return Icon(iconToSet, color: Theme.of(context).colorScheme.primary, size: 24.0);
+    return Icon(iconToSet, color: Theme.of(context).colorScheme.inversePrimary, size: 24.0);
   }
 
   Row createControlPanelWidget(BuildContext context) {
-    int index;
+    int index = 0;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        ElevatedButton(
+          onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () {
+            int indexCalc = _soundPlayer.availableSongs.indexOf(_soundPlayer.currentlySelectedSong!);
+            
+            if(index != indexCalc) {
+              index = indexCalc;
+              _musicListScrollControl.jumpTo(
+                index * 50
+              );
+            }
+            else {
+              index = 0;
+              _musicListScrollControl.jumpTo(index.toDouble());
+            }
+          },
+          child: getDefaultIconWidget(Icons.music_note),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              _searchMusicInputController.clear();
+              _isSearchBoxVisible = !_isSearchBoxVisible;
+            });
+          },
+          child: getDefaultIconWidget(Icons.search),
+        ),
         ElevatedButton(
           onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () => {
             setState(() {
@@ -68,24 +94,6 @@ class _MainViewState extends State<MainView> {
             });
           },
           child: getDefaultIconWidget(Icons.shuffle),
-        ),
-        ElevatedButton(
-          onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () => {
-            index = _soundPlayer.availableSongs.indexOf(_soundPlayer.currentlySelectedSong!),
-            _musicListScrollControl.jumpTo(
-              index * 50
-            )
-          },
-          child: getDefaultIconWidget(Icons.music_note),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            setState(() {
-              _searchMusicInputController.clear();
-              _isSearchBoxVisible = !_isSearchBoxVisible;
-            });
-          },
-          child: getDefaultIconWidget(Icons.search),
         ),
       ],
     );
@@ -106,7 +114,12 @@ class _MainViewState extends State<MainView> {
       ),
       itemBuilder: (context, index) {
         return ListTile(
-          title: Text(_soundPlayer.availableSongs[index].name),
+          title: Text(
+            _soundPlayer.availableSongs[index].name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+          ),
           trailing: _soundPlayer.availableSongs[index] == _soundPlayer.currentlySelectedSong ?
             getDefaultIconWidget(Icons.music_note) : null,
           onTap: () => {
@@ -123,29 +136,41 @@ class _MainViewState extends State<MainView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.title),
       ),
-      body: SingleChildScrollView(
-        controller: _musicListScrollControl,
-        child: Column(
-          children: [
-            createControlPanelWidget(context),
-            _isSearchBoxVisible ? SizedBox(
+      body: Column(
+        children: [
+          Expanded(
+            child: createControlPanelWidget(context),
+          ),
+          _isSearchBoxVisible ? Expanded(
+            child: SizedBox(
               width: double.infinity,
               child: TextField(
                 controller: _searchMusicInputController,
+                autofocus: true,
                 onTapOutside: (event) {
                   FocusManager.instance.primaryFocus?.unfocus();
+                  setState(() {
+                    _isSearchBoxVisible = false;
+                  });
                 },
               ),
-            ) as Widget : const SizedBox.shrink(),
-            _soundPlayer.availableSongs.isNotEmpty ?
-              createMusicListWidget(context) :
-              const Text("No files found, if you just assigned permission to the app, restart to load files.", softWrap: true,)
-          ],
-        ),
-      ),
+            )
+          ) as Widget : const SizedBox.shrink(),
+          Expanded(
+            flex: 10,
+            child: SingleChildScrollView(
+              controller: _musicListScrollControl,
+              child: 
+              _soundPlayer.availableSongs.isNotEmpty ?
+                createMusicListWidget(context) :
+                const Text("Welcome to Strayker Music!", softWrap: true,),
+            )
+          )
+        ],
+      )
     );
   }
 }

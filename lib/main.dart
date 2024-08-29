@@ -20,7 +20,8 @@ class MyApp extends StatelessWidget {
       title: 'Strayker Music',
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: const Color(0xFF1A2D47),
+          primary: const Color(0xFF1A2D47),
           brightness: Brightness.dark
         ),
         brightness: Brightness.dark,
