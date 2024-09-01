@@ -1,15 +1,19 @@
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:strayker_music/Constants/constants.dart';
 
 interface class MusicFile {
-  String nameLocal = Constants.stringEmpty;
-  String filePathLocal = Constants.stringEmpty;
+  late MediaItem _mediaItem;
+  String _nameLocal = Constants.stringEmpty;
+  String _filePathLocal = Constants.stringEmpty;
 
-  String get name => nameLocal;
-  String get filePath => filePathLocal;
+  String get name => _nameLocal;
+  String get filePath => _filePathLocal;
   set filePath(String value) => {
-    filePathLocal = value,
-    nameLocal = _getFileName(value)
+    _filePathLocal = value,
+    _nameLocal = _getFileName(value),
+    _mediaItem = MediaItem(id: "1", title: _nameLocal)
   };
+  MediaItem get mediaItemMetaData => _mediaItem;
 
   String _getFileName(String givenPath) {
     String name = givenPath;
