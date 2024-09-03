@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:strayker_music/Business/sound_files_manager.dart';
 import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Constants/player_state_enum.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
@@ -22,22 +23,34 @@ class _MainViewState extends State<MainView> {
   late final SoundFilesManager _soundManager;
   PlayerStateEnum _currentState = PlayerStateEnum.musicNotLoaded;
   bool _isSearchBoxVisible = false;
+  List<MusicFile> displayedFiles = [];
 
   @override
   void initState() {
     super.initState();
     _soundPlayer = SoundPlayer();
     _soundManager = SoundFilesManager(player: _soundPlayer, songs: _filesReader.getMusicFiles());
+    displayedFiles = _soundManager.availableSongs;
     _searchMusicInputController.addListener(onSearchInputChanged);
   }
 
-  // I don't know why, but here if I clone list of MusicFiles to perform dynamic search, UI thread's performance is starting to fluctuate.
-  // Why reading data from storage (IO operation) repetedly is quicker than clone in-memory list of data?
   void onSearchInputChanged() {
-    List<MusicFile> filteredFiles = _filesReader.getMusicFiles();
-    filteredFiles.retainWhere((musicFile) => musicFile.name.toUpperCase().contains(_searchMusicInputController.value.text.toUpperCase()));
+    if (_searchMusicInputController.value.text == Constants.stringEmpty) {
+      setState(() {
+        displayedFiles = _soundManager.availableSongs;
+      });
+    }
+
+    List<MusicFile> filteredFiles = [];
+    for (var soundFile in _soundManager.availableSongs) {
+      if (soundFile.name.toUpperCase().contains(_searchMusicInputController.value.text.toUpperCase()))
+      {
+        filteredFiles.add(soundFile);
+      }
+    }
+
     setState(() {
-      _soundManager.availableSongs = filteredFiles;
+      displayedFiles = filteredFiles;
     });
   }
 
@@ -55,9 +68,6 @@ class _MainViewState extends State<MainView> {
         autofocus: true,
         onTapOutside: (event) {
           FocusManager.instance.primaryFocus?.unfocus();
-          setState(() {
-            _isSearchBoxVisible = false;
-          });
         },
       ),
     );
@@ -70,12 +80,12 @@ class _MainViewState extends State<MainView> {
       children: [
         ElevatedButton(
           onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () {
-            int indexCalc = _soundManager.availableSongs.indexOf(_soundPlayer.currentSong!);
+            int indexCalc = displayedFiles.indexOf(_soundPlayer.currentSong!);
             
             if(index != indexCalc) {
               index = indexCalc;
               _musicListScrollControl.jumpTo(
-                index * 50
+                index * 60
               );
             }
             else {
@@ -120,10 +130,10 @@ class _MainViewState extends State<MainView> {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemCount: _soundManager.availableSongs.length,
+      itemCount: displayedFiles.length,
       prototypeItem: ListTile(
         title: Text(
-          _soundManager.availableSongs.first.name,
+          displayedFiles.first.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           softWrap: true,
@@ -131,13 +141,14 @@ class _MainViewState extends State<MainView> {
       ),
       itemBuilder: (context, index) {
         return ListTile(
+          minTileHeight: 60,
           title: Text(
-            _soundManager.availableSongs[index].name,
+            displayedFiles[index].name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: _soundManager.availableSongs[index] == _soundPlayer.currentSong ?
+          trailing: displayedFiles[index] == _soundPlayer.currentSong ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
             setState(() {
@@ -169,9 +180,9 @@ class _MainViewState extends State<MainView> {
             child: SingleChildScrollView(
               controller: _musicListScrollControl,
               child: 
-              _soundManager.availableSongs.isNotEmpty ?
+              displayedFiles.isNotEmpty ?
                 createMusicListWidget(context) :
-                const Text("Welcome to Strayker Music!", softWrap: true,),
+                const Text("Welcome to Strayker Music!", softWrap: true),
             )
           )
         ],
