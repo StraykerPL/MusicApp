@@ -80,10 +80,8 @@ class _MainViewState extends State<MainView> {
       children: [
         ElevatedButton(
           onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () {
-            int indexCalc = displayedFiles.indexOf(_soundPlayer.currentSong!);
-            
-            if(index != indexCalc) {
-              index = indexCalc;
+            if(index != _soundPlayer.currentSong?.playIndex) {
+              index = _soundPlayer.currentSong!.playIndex;
               _musicListScrollControl.jumpTo(
                 index * 60
               );
@@ -148,7 +146,7 @@ class _MainViewState extends State<MainView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: displayedFiles[index] == _soundPlayer.currentSong ?
+          trailing: _soundPlayer.currentSong?.playIndex == index ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
             setState(() {

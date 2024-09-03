@@ -44,8 +44,4 @@ final class SoundFilesManager {
 
     return _soundPlayer.playNewSong();
   }
-
-  void filterSongs(String searchText) {
-    availableSongs.retainWhere((musicFile) => musicFile.name.toUpperCase().contains(searchText.toUpperCase()));
-  }
 }
