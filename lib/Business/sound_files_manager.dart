@@ -39,8 +39,8 @@ final class SoundFilesManager {
     }
   }
 
-  PlayerStateEnum selectAndPlaySong(int songIndex) {
-    _soundPlayer.currentSong = availableSongs[songIndex];
+  PlayerStateEnum selectAndPlaySong(String songName) {
+    _soundPlayer.currentSong = availableSongs.singleWhere((songFile) => songFile.name == songName);
 
     return _soundPlayer.playNewSong();
   }

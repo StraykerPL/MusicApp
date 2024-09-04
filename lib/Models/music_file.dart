@@ -5,7 +5,6 @@ interface class MusicFile {
   late MediaItem _mediaItem;
   String _nameLocal = Constants.stringEmpty;
   String _filePathLocal = Constants.stringEmpty;
-  int _playIndexLocal = 0;
 
   String get name => _nameLocal;
   String get filePath => _filePathLocal;
@@ -15,10 +14,6 @@ interface class MusicFile {
     _mediaItem = MediaItem(id: "1", title: _nameLocal)
   };
   MediaItem get mediaItemMetaData => _mediaItem;
-  int get playIndex => _playIndexLocal;
-  set playIndex(int value) => {
-    _playIndexLocal = value
-  };
 
   String _getFileName(String givenPath) {
     String name = givenPath;

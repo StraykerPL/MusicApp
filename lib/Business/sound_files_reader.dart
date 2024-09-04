@@ -24,14 +24,11 @@ final class SoundFilesReader {
         debugPrint(e.toString());
       }
 
-      int indexingHelper = 0;
       for(FileSystemEntity entity in files) {
         if(entity.path.endsWith(Constants.stringMp3Extension)) {
           final MusicFile newFile = MusicFile();
           newFile.filePath = entity.path;
-          newFile.playIndex = indexingHelper;
           songs.add(newFile);
-          indexingHelper++;
         }
       }
     }

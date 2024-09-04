@@ -80,8 +80,10 @@ class _MainViewState extends State<MainView> {
       children: [
         ElevatedButton(
           onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () {
-            if(index != _soundPlayer.currentSong?.playIndex) {
-              index = _soundPlayer.currentSong!.playIndex;
+            var indexCalc = _soundManager.availableSongs.indexOf(_soundPlayer.currentSong as MusicFile);
+
+            if(index != indexCalc) {
+              index = indexCalc;
               _musicListScrollControl.jumpTo(
                 index * 60
               );
@@ -129,14 +131,6 @@ class _MainViewState extends State<MainView> {
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: displayedFiles.length,
-      prototypeItem: ListTile(
-        title: Text(
-          displayedFiles.first.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          softWrap: true,
-        )
-      ),
       itemBuilder: (context, index) {
         return ListTile(
           minTileHeight: 60,
@@ -146,11 +140,11 @@ class _MainViewState extends State<MainView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: _soundPlayer.currentSong?.playIndex == index ?
+          trailing: displayedFiles[index].name == _soundPlayer.currentSong?.name ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
             setState(() {
-              _currentState = _soundManager.selectAndPlaySong(index);
+              _currentState = _soundManager.selectAndPlaySong(displayedFiles[index].name);
             })
           },
         );
