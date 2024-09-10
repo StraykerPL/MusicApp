@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:strayker_music/Constants/player_state_enum.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
 final class SoundPlayer {
@@ -18,11 +19,11 @@ final class SoundPlayer {
     });
   }
 
-  PlayerStateEnum playNewSong() {
-    if(currentSong == null) {
-      return PlayerStateEnum.musicNotLoaded;
-    }
+  StreamSubscription<bool> isSoundPlaying() {
+    return _player.playingStream.listen(null);
+  }
 
+  void playNewSong() {
     _player.stop();
     _session.setActive(true).then((onValue) {
       if(onValue) {
@@ -36,20 +37,14 @@ final class SoundPlayer {
         });
       }
     });
-
-    return PlayerStateEnum.playing;
   }
 
-  PlayerStateEnum resumeOrPauseSong() {
+  void resumeOrPauseSong() {
     if(_player.playing) {
       _player.pause();
-
-      return PlayerStateEnum.paused;
     }
     else {
       _player.play();
-
-      return PlayerStateEnum.playing;
     }
   }
 }

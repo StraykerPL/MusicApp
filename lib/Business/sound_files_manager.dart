@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:strayker_music/Business/sound_player.dart';
-import 'package:strayker_music/Constants/player_state_enum.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
 final class SoundFilesManager {
@@ -14,7 +13,7 @@ final class SoundFilesManager {
     availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
   }
 
-  PlayerStateEnum playRandomMusic() {
+  void playRandomMusic() {
     while (true) {
       MusicFile randomMusicFile = availableSongs[Random().nextInt(availableSongs.length)];
 
@@ -22,15 +21,15 @@ final class SoundFilesManager {
         if(playedSongs.length < 20) {
           playedSongs.add(randomMusicFile);
           _soundPlayer.currentSong = randomMusicFile;
-
-          return _soundPlayer.playNewSong();
+          _soundPlayer.playNewSong();
+          break;
         }
         else if(playedSongs.length >= 20) {
           playedSongs.removeAt(0);
           playedSongs.add(randomMusicFile);
           _soundPlayer.currentSong = randomMusicFile;
-
-          return _soundPlayer.playNewSong();
+          _soundPlayer.playNewSong();
+          break;
         }
       }
       else {
@@ -39,9 +38,8 @@ final class SoundFilesManager {
     }
   }
 
-  PlayerStateEnum selectAndPlaySong(String songName) {
+  void selectAndPlaySong(String songName) {
     _soundPlayer.currentSong = availableSongs.singleWhere((songFile) => songFile.name == songName);
-
-    return _soundPlayer.playNewSong();
+    _soundPlayer.playNewSong();
   }
 }

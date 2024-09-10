@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:strayker_music/Business/sound_files_manager.dart';
 import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/constants.dart';
-import 'package:strayker_music/Constants/player_state_enum.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
 
 class MainView extends StatefulWidget {
@@ -21,7 +23,8 @@ class _MainViewState extends State<MainView> {
   final TextEditingController _searchMusicInputController = TextEditingController();
   late final SoundPlayer _soundPlayer;
   late final SoundFilesManager _soundManager;
-  PlayerStateEnum _currentState = PlayerStateEnum.musicNotLoaded;
+  late final StreamSubscription<bool> _playerStatusSubscription;
+  bool _isCurrentlyPlaying = false;
   bool _isSearchBoxVisible = false;
   List<MusicFile> displayedFiles = [];
 
@@ -32,6 +35,12 @@ class _MainViewState extends State<MainView> {
     _soundManager = SoundFilesManager(player: _soundPlayer, songs: _filesReader.getMusicFiles());
     displayedFiles = _soundManager.availableSongs;
     _searchMusicInputController.addListener(onSearchInputChanged);
+    _playerStatusSubscription = _soundPlayer.isSoundPlaying();
+    _playerStatusSubscription.onData((value) async {
+      setState(() {
+        _isCurrentlyPlaying = value;
+      });
+    });
   }
 
   void onSearchInputChanged() {
@@ -57,20 +66,8 @@ class _MainViewState extends State<MainView> {
   @override
   void dispose() {
     _searchMusicInputController.dispose();
+    _playerStatusSubscription.cancel();
     super.dispose();
-  }
-
-  SizedBox createSearchInputbox() {
-    return SizedBox(
-      width: double.infinity,
-      child: TextField(
-        controller: _searchMusicInputController,
-        autofocus: true,
-        onTapOutside: (event) {
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
-      ),
-    );
   }
 
   Row createControlPanelWidget(BuildContext context) {
@@ -79,7 +76,7 @@ class _MainViewState extends State<MainView> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ElevatedButton(
-          onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () {
+          onPressed: !_isCurrentlyPlaying && _soundPlayer.currentSong == null ? null : () {
             var indexCalc = _soundManager.availableSongs.indexOf(_soundPlayer.currentSong as MusicFile);
 
             if(index != indexCalc) {
@@ -105,20 +102,16 @@ class _MainViewState extends State<MainView> {
           child: getDefaultIconWidget(context, Icons.search),
         ),
         ElevatedButton(
-          onPressed: _currentState == PlayerStateEnum.musicNotLoaded ? null : () => {
-            setState(() {
-              _currentState = _soundPlayer.resumeOrPauseSong();
-            })
+          onPressed: !_isCurrentlyPlaying && _soundPlayer.currentSong == null ? null : () => {
+            _soundPlayer.resumeOrPauseSong()
           },
-          child: _currentState == PlayerStateEnum.playing ?
+          child: _isCurrentlyPlaying ?
             getDefaultIconWidget(context, Icons.pause) :
             getDefaultIconWidget(context, Icons.play_arrow)
         ),
         ElevatedButton(
           onPressed: () {
-            setState(() {
-              _currentState = _soundManager.playRandomMusic();
-            });
+            _soundManager.playRandomMusic();
           },
           child: getDefaultIconWidget(context, Icons.shuffle),
         ),
@@ -143,9 +136,7 @@ class _MainViewState extends State<MainView> {
           trailing: displayedFiles[index].name == _soundPlayer.currentSong?.name ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
-            setState(() {
-              _currentState = _soundManager.selectAndPlaySong(displayedFiles[index].name);
-            })
+            _soundManager.selectAndPlaySong(displayedFiles[index].name)
           },
         );
       },
@@ -165,7 +156,7 @@ class _MainViewState extends State<MainView> {
             child: createControlPanelWidget(context),
           ),
           _isSearchBoxVisible ? Expanded(
-            child: createSearchInputbox()
+            child: createSearchInputbox(_searchMusicInputController)
           ) as Widget : const SizedBox.shrink(),
           Expanded(
             flex: 10,
