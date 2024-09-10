@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:strayker_music/Business/sound_files_manager.dart';
@@ -8,6 +9,7 @@ import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key, required this.title});
@@ -27,6 +29,7 @@ class _MainViewState extends State<MainView> {
   bool _isCurrentlyPlaying = false;
   bool _isSearchBoxVisible = false;
   List<MusicFile> displayedFiles = [];
+  late final PackageInfo _packageInfo;
 
   @override
   void initState() {
@@ -41,6 +44,7 @@ class _MainViewState extends State<MainView> {
         _isCurrentlyPlaying = value;
       });
     });
+    PackageInfo.fromPlatform().then((value) => _packageInfo = value);
   }
 
   void onSearchInputChanged() {
@@ -105,7 +109,7 @@ class _MainViewState extends State<MainView> {
           onPressed: !_isCurrentlyPlaying && _soundPlayer.currentSong == null ? null : () => {
             _soundPlayer.resumeOrPauseSong()
           },
-          child: _isCurrentlyPlaying ?
+          child: _isCurrentlyPlaying && _soundPlayer.currentSong != null ?
             getDefaultIconWidget(context, Icons.pause) :
             getDefaultIconWidget(context, Icons.play_arrow)
         ),
@@ -143,12 +147,58 @@ class _MainViewState extends State<MainView> {
     );
   }
 
+  Future<void> _showMyDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Strayker Music'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Version: ${_packageInfo.version}+${_packageInfo.buildNumber}\n\nOS Version: ${Platform.operatingSystemVersion}\n\nDart: ${Platform.version}'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.title),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text("Strayker Music"),
+            ),
+            ListTile(
+              title: const Text("About"),
+              onTap: () {
+                _showMyDialog();
+              },
+            )
+          ],
+        ),
       ),
       body: Column(
         children: [
