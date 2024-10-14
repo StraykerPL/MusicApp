@@ -10,6 +10,7 @@ import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:strayker_music/Widgets/settings.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key, required this.title});
@@ -190,6 +191,12 @@ class _MainViewState extends State<MainView> {
                 color: Theme.of(context).colorScheme.primary,
               ),
               child: const Text("Strayker Music"),
+            ),
+            ListTile(
+              title: const Text("Settings"),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (ctxt) => const SettingsView(title: "Settings")));
+              },
             ),
             ListTile(
               title: const Text("About"),
