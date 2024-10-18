@@ -86,8 +86,9 @@ class _MainViewState extends State<MainView> {
 
             if(index != indexCalc) {
               index = indexCalc;
+              var padding = MediaQuery.of(context).viewPadding;
               _musicListScrollControl.jumpTo(
-                index * 60
+                (index * 60) - ((MediaQuery.sizeOf(context).height - padding.top - padding.bottom - kToolbarHeight) / 2.5)
               );
             }
             else {

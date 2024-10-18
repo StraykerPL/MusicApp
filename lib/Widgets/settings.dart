@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_io.dart';
 
@@ -53,6 +54,25 @@ class _SettingsViewState extends State<SettingsView> {
     });
   }
 
+  ListView createPathsListWidget(BuildContext context) {
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: _soundStorageLocations.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(
+            _soundStorageLocations[index],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+          ),
+          onTap: () => {},
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,12 +90,27 @@ class _SettingsViewState extends State<SettingsView> {
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              keyboardType: TextInputType.number
             ),
           ),
           const Text("Storage paths to look for sound files:"),
-          const SizedBox(
+          SizedBox(
             width: double.infinity,
-            child: TextField(),
+            height: 300,
+            child: Column(
+              children: [
+                const Row(
+                  children: [
+                    ElevatedButton(onPressed: null, child: Text("+")),
+                    ElevatedButton(onPressed: null, child: Text("-")),
+                  ],
+                ),
+                SingleChildScrollView(
+                  child: createPathsListWidget(context),
+                )
+              ],
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
