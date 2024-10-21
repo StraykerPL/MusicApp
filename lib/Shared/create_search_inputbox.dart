@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-SizedBox createSearchInputbox(TextEditingController inputController) {
+SizedBox createBaseInputbox(TextEditingController inputController, bool shouldAutofocus) {
   return SizedBox(
     width: double.infinity,
     child: TextField(
       controller: inputController,
-      autofocus: true,
+      autofocus: shouldAutofocus,
       onTapOutside: (event) {
         FocusManager.instance.primaryFocus?.unfocus();
       },

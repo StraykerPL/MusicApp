@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_io.dart';
+import 'package:strayker_music/Constants/constants.dart';
+import 'package:strayker_music/Shared/create_search_inputbox.dart';
+import 'package:strayker_music/Shared/get_default_icon_widget.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key, required this.title});
@@ -23,6 +26,7 @@ class _SettingsViewState extends State<SettingsView> {
   static const int _playedSongsMaxAmountDefault = 20;
   List<String> _soundStorageLocations = ["/storage/emulated/0/MicroSD/Muzyka", "/storage/emulated/0/MicroSD/Muzyka One Republic"];
   static const List<String> _soundStorageLocationsDefault = [];
+  String? _currentlySelectedStoragePath;
 
   @override
   void initState() {
@@ -67,7 +71,13 @@ class _SettingsViewState extends State<SettingsView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          onTap: () => {},
+          trailing: _currentlySelectedStoragePath == _soundStorageLocations[index] ?
+            getDefaultIconWidget(context, Icons.check) : null,
+          onTap: () => {
+            setState(() {
+              _currentlySelectedStoragePath = _soundStorageLocations[index];
+            })
+          },
         );
       },
     );
@@ -100,12 +110,31 @@ class _SettingsViewState extends State<SettingsView> {
             height: 300,
             child: Column(
               children: [
-                const Row(
+                Row(
                   children: [
-                    ElevatedButton(onPressed: null, child: Text("+")),
-                    ElevatedButton(onPressed: null, child: Text("-")),
+                    ElevatedButton(
+                      onPressed: () => {
+                        if (_soundStorageLocationsInputController.value.text != Constants.stringEmpty) {
+                          setState(() {
+                            _soundStorageLocations.add(_soundStorageLocationsInputController.value.text);
+                          }),
+                          _soundStorageLocationsInputController.clear()
+                        }
+                      },
+                      child: const Text("+")
+                    ),
+                    ElevatedButton(
+                      onPressed: () => {
+                        setState(() {
+                          _soundStorageLocations.remove(_currentlySelectedStoragePath);
+                        }),
+                        _currentlySelectedStoragePath = null
+                      },
+                      child: const Text("-")
+                    ),
                   ],
                 ),
+                createBaseInputbox(_soundStorageLocationsInputController, false),
                 SingleChildScrollView(
                   child: createPathsListWidget(context),
                 )

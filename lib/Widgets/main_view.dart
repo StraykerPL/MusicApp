@@ -214,7 +214,7 @@ class _MainViewState extends State<MainView> {
             child: createControlPanelWidget(context),
           ),
           _isSearchBoxVisible ? Expanded(
-            child: createSearchInputbox(_searchMusicInputController)
+            child: createBaseInputbox(_searchMusicInputController, true)
           ) as Widget : const SizedBox.shrink(),
           Expanded(
             flex: 10,
