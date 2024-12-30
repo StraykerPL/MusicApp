@@ -22,11 +22,47 @@ class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _playedSongsMaxAmountInputController = TextEditingController();
   final TextEditingController _soundStorageLocationsInputController = TextEditingController();
 
-  int _playedSongsMaxAmount = 20;
-  static const int _playedSongsMaxAmountDefault = 20;
+  int _playedSongsMaxAmount = 0;
+  static const int _playedSongsMaxAmountDefault = 0;
   List<String> _soundStorageLocations = ["/storage/emulated/0/MicroSD/Muzyka", "/storage/emulated/0/MicroSD/Muzyka One Republic"];
   static const List<String> _soundStorageLocationsDefault = [];
   String? _currentlySelectedStoragePath;
+
+  String serializeList(List<String> collection) {
+    var newString = "";
+
+    for (var stringToConcat in collection) {
+      newString += stringToConcat;
+      newString += ";";
+    }
+
+    return newString;
+  }
+
+  List<String> deserializeString(String serializedValue) {
+    return serializedValue.split(";");
+  }
+
+  void saveSettings() {
+    _settingsStore.record("playedSongsMaxAmount").put(_dbContext!, { "value": _playedSongsMaxAmount });
+    _settingsStore.record("soundStorageLocations").put(_dbContext!, { "values": serializeList(_soundStorageLocations) });
+  }
+
+  void loadSettings() {
+    _settingsStore.record('playedSongsMaxAmount').get(_dbContext!).then((maxAmount) {
+      _playedSongsMaxAmount = maxAmount!.values.first as int;
+    });
+    _settingsStore.record('soundStorageLocations').get(_dbContext!).then((locations) {
+      _soundStorageLocations = deserializeString(locations!.values.first as String);
+    });
+  }
+
+  void setDefualtValues() {
+    _playedSongsMaxAmount = _playedSongsMaxAmountDefault;
+    _soundStorageLocations = _soundStorageLocationsDefault;
+
+    saveSettings();
+  }
 
   @override
   void initState() {
@@ -47,12 +83,13 @@ class _SettingsViewState extends State<SettingsView> {
           _settingsStore.record("soundStorageLocations").put(_dbContext!, { "values": _soundStorageLocationsDefault })
         }
         else {
-          _settingsStore.record('playedSongsMaxAmount').get(_dbContext!).then((maxAmount) {
-            _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
-              text: maxAmount!.values.first.toString(),
-              selection: TextSelection.collapsed(offset: maxAmount.toString().length),
-            );
+          setState(() {
+            loadSettings();
           }),
+          _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
+            text: _playedSongsMaxAmount.toString(),
+            selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
+          )
         }
       });
     });
@@ -144,30 +181,36 @@ class _SettingsViewState extends State<SettingsView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const ElevatedButton(
-                onPressed: null,
-                child: Text("Save")
+              ElevatedButton(
+                onPressed: () {
+                  _playedSongsMaxAmount = int.parse(_playedSongsMaxAmountInputController.value.text);
+                  saveSettings();
+                },
+                child: const Text("Save")
               ),
               ElevatedButton(
                 onPressed: () {
                   setState(() {
+                    loadSettings();
                     _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
                       text: _playedSongsMaxAmount.toString(),
                       selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
                     );
-                    _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: "");
+                    _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
                   });
                 },
                 child: const Text("Cancel")
               ),
               ElevatedButton(
                 onPressed: () {
-                  _settingsStore.record("playedSongsMaxAmount").update(_dbContext!, { "value": _playedSongsMaxAmountDefault });
-                  _settingsStore.record("soundStorageLocations").update(_dbContext!, { "values": _soundStorageLocationsDefault });
-                  _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
-                    text: _playedSongsMaxAmount.toString(),
-                    selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
-                  );
+                  setState(() {
+                    setDefualtValues();
+                    _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
+                      text: _playedSongsMaxAmount.toString(),
+                      selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
+                    );
+                    _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
+                  });
                 },
                 child: const Text("Load Default")
               )
