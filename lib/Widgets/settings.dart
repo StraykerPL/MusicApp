@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sembast/sembast.dart';
-import 'package:sembast/sembast_io.dart';
+import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
@@ -17,43 +14,50 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  Database? _dbContext;
-  final StoreRef<String, Map<String, Object?>> _settingsStore = stringMapStoreFactory.store('settings');
+  DatabaseHelper? _dbContext;
   final TextEditingController _playedSongsMaxAmountInputController = TextEditingController();
   final TextEditingController _soundStorageLocationsInputController = TextEditingController();
 
   int _playedSongsMaxAmount = 0;
   static const int _playedSongsMaxAmountDefault = 0;
-  List<String> _soundStorageLocations = ["/storage/emulated/0/MicroSD/Muzyka", "/storage/emulated/0/MicroSD/Muzyka One Republic"];
-  static const List<String> _soundStorageLocationsDefault = [];
+  List<String> _soundStorageLocations = [];
+  static const List<String> _soundStorageLocationsDefault = ["/storage/emulated/0/Music"];
   String? _currentlySelectedStoragePath;
 
-  String serializeList(List<String> collection) {
-    var newString = "";
-
-    for (var stringToConcat in collection) {
-      newString += stringToConcat;
-      newString += ";";
+  void saveSettings() {
+    _dbContext!.updateDataByName("settings", "playedSongsMaxAmount", {"value": _playedSongsMaxAmount});
+    
+    List<Map<String, dynamic>> sumUpData = [];
+    for (var storagePath in _soundStorageLocations) {
+      sumUpData.add({"name": storagePath});
     }
 
-    return newString;
-  }
-
-  List<String> deserializeString(String serializedValue) {
-    return serializedValue.split(";");
-  }
-
-  void saveSettings() {
-    _settingsStore.record("playedSongsMaxAmount").put(_dbContext!, { "value": _playedSongsMaxAmount });
-    _settingsStore.record("soundStorageLocations").put(_dbContext!, { "values": serializeList(_soundStorageLocations) });
+    _dbContext!.cleanTable("storageLocations").then((voidArg)  {
+      _dbContext!.insertData("storageLocations", sumUpData);
+    });
   }
 
   void loadSettings() {
-    _settingsStore.record('playedSongsMaxAmount').get(_dbContext!).then((maxAmount) {
-      _playedSongsMaxAmount = maxAmount!.values.first as int;
+    _dbContext!.getAllData("settings").then((settingsRawData) {
+      for (var row in settingsRawData) {
+        if (row["name"] == "playedSongsMaxAmount") {
+          _playedSongsMaxAmount = int.parse(row["value"]);
+          _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
+            text: _playedSongsMaxAmount.toString(),
+            selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
+          );
+        }
+      }
     });
-    _settingsStore.record('soundStorageLocations').get(_dbContext!).then((locations) {
-      _soundStorageLocations = deserializeString(locations!.values.first as String);
+
+    _dbContext!.getAllData("storageLocations").then((storageLocationsRawData) {
+      for (final {"name": name as String} in storageLocationsRawData) {
+        if (!_soundStorageLocations.contains(name)) {
+          setState(() {
+            _soundStorageLocations.add(name);
+          });
+        }
+      }
     });
   }
 
@@ -67,32 +71,8 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void initState() {
     super.initState();
-    File dbFile = File("/storage/emulated/0/strayker_music.db");
-    dbFile.exists().onError((obj, stack) {
-      dbFile.createSync();
-
-      return false;
-    });
-
-    databaseFactoryIo.openDatabase(dbFile.path).then((db) {
-      _dbContext = db;
-
-      _settingsStore.record("playedSongsMaxAmount").exists(_dbContext!).then((value) => {
-        if(!value) {
-          _settingsStore.record("playedSongsMaxAmount").put(_dbContext!, { "value": _playedSongsMaxAmountDefault }),
-          _settingsStore.record("soundStorageLocations").put(_dbContext!, { "values": _soundStorageLocationsDefault })
-        }
-        else {
-          setState(() {
-            loadSettings();
-          }),
-          _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
-            text: _playedSongsMaxAmount.toString(),
-            selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
-          )
-        }
-      });
-    });
+    _dbContext = DatabaseHelper();
+    loadSettings();
   }
 
   ListView createPathsListWidget(BuildContext context) {
@@ -190,12 +170,8 @@ class _SettingsViewState extends State<SettingsView> {
               ),
               ElevatedButton(
                 onPressed: () {
+                  loadSettings();
                   setState(() {
-                    loadSettings();
-                    _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
-                      text: _playedSongsMaxAmount.toString(),
-                      selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
-                    );
                     _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
                   });
                 },
@@ -203,8 +179,8 @@ class _SettingsViewState extends State<SettingsView> {
               ),
               ElevatedButton(
                 onPressed: () {
+                  setDefualtValues();
                   setState(() {
-                    setDefualtValues();
                     _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
                       text: _playedSongsMaxAmount.toString(),
                       selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),

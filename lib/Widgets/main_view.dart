@@ -210,7 +210,9 @@ class _MainViewState extends State<MainView> {
       ),
       body: Column(
         children: [
-          Expanded(
+          SizedBox(
+            width: double.infinity,
+            height: 60,
             child: createControlPanelWidget(context),
           ),
           _isSearchBoxVisible ? Expanded(

@@ -41,7 +41,8 @@ dependencies:
   just_audio_background: ^0.0.1-beta.13
   audio_session: ^0.1.21
   package_info_plus: ^8.0.2
-  sembast: ^3.7.2
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:
