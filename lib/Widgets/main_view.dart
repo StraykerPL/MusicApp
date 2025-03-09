@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:strayker_music/Business/sound_files_manager.dart';
 import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
@@ -9,7 +10,6 @@ import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:strayker_music/Widgets/settings.dart';
 
 class MainView extends StatefulWidget {
@@ -29,18 +29,22 @@ class _MainViewState extends State<MainView> {
   late final StreamSubscription<bool> _playerStatusSubscription;
   bool _isCurrentlyPlaying = false;
   bool _isSearchBoxVisible = false;
-  List<MusicFile> displayedFiles = [];
+  late List<MusicFile> displayedFiles = [];
   late final PackageInfo _packageInfo;
 
   @override
   void initState() {
     super.initState();
     _soundPlayer = SoundPlayer();
-    _soundManager = SoundFilesManager(player: _soundPlayer, songs: _filesReader.getMusicFiles());
-    displayedFiles = _soundManager.availableSongs;
+    _filesReader.getMusicFiles().then((musicFiles) {
+      _soundManager = SoundFilesManager(player: _soundPlayer, songs: musicFiles);
+      setState(() {
+        displayedFiles = _soundManager.availableSongs;
+      });
+    });
     _searchMusicInputController.addListener(onSearchInputChanged);
     _playerStatusSubscription = _soundPlayer.isSoundPlaying();
-    _playerStatusSubscription.onData((value) async {
+    _playerStatusSubscription.onData((value) {
       setState(() {
         _isCurrentlyPlaying = value;
       });
@@ -48,7 +52,7 @@ class _MainViewState extends State<MainView> {
     PackageInfo.fromPlatform().then((value) => _packageInfo = value);
   }
 
-  void onSearchInputChanged() {
+  Future<void> onSearchInputChanged() async {
     if (_searchMusicInputController.value.text == Constants.stringEmpty) {
       setState(() {
         displayedFiles = _soundManager.availableSongs;
@@ -149,7 +153,7 @@ class _MainViewState extends State<MainView> {
     );
   }
 
-  Future<void> _showMyDialog() async {
+  Future<void> _showAboutAppDialog() async {
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -160,6 +164,8 @@ class _MainViewState extends State<MainView> {
             child: ListBody(
               children: <Widget>[
                 Text('Version: ${_packageInfo.version}+${_packageInfo.buildNumber}\n\nOS Version: ${Platform.operatingSystemVersion}\n\nDart: ${Platform.version}'),
+                const Image(image: AssetImage('assets/logo.png')),
+                const Text("Copyright © 2018-actual Daniel Strayker Nowak and Strayker Software Contributors\nAll rights reserved")
               ],
             ),
           ),
@@ -190,6 +196,11 @@ class _MainViewState extends State<MainView> {
             DrawerHeader(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary,
+                // TODO: Special version of Strayker Logo must be created for that.
+                // image: DecorationImage(
+                //   image: AssetImage('assets/logo.png'),
+                //   alignment: Alignment.bottomLeft
+                // ),
               ),
               child: const Text("Strayker Music"),
             ),
@@ -202,7 +213,7 @@ class _MainViewState extends State<MainView> {
             ListTile(
               title: const Text("About"),
               onTap: () {
-                _showMyDialog();
+                _showAboutAppDialog();
               },
             )
           ],

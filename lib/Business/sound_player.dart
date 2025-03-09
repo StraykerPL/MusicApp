@@ -23,20 +23,20 @@ final class SoundPlayer {
     return _player.playingStream.listen(null);
   }
 
-  void playNewSong() {
+  Future<void> playNewSong() async {
     _player.stop();
-    _session.setActive(true).then((onValue) {
-      if(onValue) {
-        _player.setAudioSource(
-          AudioSource.file(
-            currentSong!.filePath,
-            tag: currentSong!.mediaItemMetaData,
-          )
-        ).whenComplete(() {
-          _player.play();
-        });
-      }
-    });
+    var value = await _session.setActive(true);
+    
+    if(value) {
+      _player.setAudioSource(
+        AudioSource.file(
+          currentSong!.filePath,
+          tag: currentSong!.mediaItemMetaData,
+        )
+      ).whenComplete(() {
+        _player.play();
+      });
+    }
   }
 
   void resumeOrPauseSong() {

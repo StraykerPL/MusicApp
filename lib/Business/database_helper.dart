@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 final class DatabaseHelper {
   static const _databaseName = 'strayker_music.db';
 
-  static Future<Database> getDatabase() async {
+  static Future<Database> _getDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = '$dbPath/$_databaseName';
 
@@ -31,45 +31,33 @@ final class DatabaseHelper {
   }
 
   Future<List<Map<String, dynamic>>> getAllData(String tableName) async {
-    final db = await getDatabase();
+    final db = await _getDatabase();
 
     return db.query(tableName);
   }
 
-  Future<List<Map<String, dynamic>>> getDataById(String tableName, int id) async {
-    final db = await getDatabase();
-
-    return db.query(tableName, where: 'id = ?', whereArgs: [id]);
-  }
-
   Future<void> insertData(String tableName, List<Map<String, dynamic>> data) async {
-    final db = await getDatabase();
+    final db = await _getDatabase();
 
     for (var row in data) {
       await db.insert(tableName, row);
     }
   }
 
-  Future<void> updateData(String tableName, int id, Map<String, dynamic> data) async {
-    final db = await getDatabase();
+  Future<void> updateData(String tableName, Map<String, dynamic> data) async {
+    final db = await _getDatabase();
 
     await db.update(tableName, data);
   }
 
   Future<void> updateDataByName(String tableName, String name, Map<String, dynamic> data) async {
-    final db = await getDatabase();
+    final db = await _getDatabase();
 
     await db.update(tableName, where: "name = ?", whereArgs: [name], data);
   }
 
-  Future<void> deleteData(String tableName, int id) async {
-    final db = await getDatabase();
-
-    await db.delete(tableName, where: 'id = ?', whereArgs: [id]);
-  }
-
   Future<void> cleanTable(String tableName) async {
-    final db = await getDatabase();
+    final db = await _getDatabase();
 
     await db.delete(tableName);
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Constants/constants.dart';
+import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
 
@@ -19,51 +20,49 @@ class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _soundStorageLocationsInputController = TextEditingController();
 
   int _playedSongsMaxAmount = 0;
-  static const int _playedSongsMaxAmountDefault = 0;
   List<String> _soundStorageLocations = [];
-  static const List<String> _soundStorageLocationsDefault = ["/storage/emulated/0/Music"];
   String? _currentlySelectedStoragePath;
 
-  void saveSettings() {
-    _dbContext!.updateDataByName("settings", "playedSongsMaxAmount", {"value": _playedSongsMaxAmount});
+  Future<void> saveSettings() async {
+    await _dbContext!.updateDataByName(
+      DatabaseConstants.settingsTableName,
+      DatabaseConstants.playedSongsMaxAmountTableValueName,
+      {"value": _playedSongsMaxAmount});
     
     List<Map<String, dynamic>> sumUpData = [];
     for (var storagePath in _soundStorageLocations) {
       sumUpData.add({"name": storagePath});
     }
 
-    _dbContext!.cleanTable("storageLocations").then((voidArg)  {
-      _dbContext!.insertData("storageLocations", sumUpData);
-    });
+    await _dbContext!.cleanTable(DatabaseConstants.storagePathsTableName);
+    await _dbContext!.insertData(DatabaseConstants.storagePathsTableName, sumUpData);
   }
 
-  void loadSettings() {
-    _dbContext!.getAllData("settings").then((settingsRawData) {
-      for (var row in settingsRawData) {
-        if (row["name"] == "playedSongsMaxAmount") {
-          _playedSongsMaxAmount = int.parse(row["value"]);
-          _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
-            text: _playedSongsMaxAmount.toString(),
-            selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
-          );
-        }
+  Future<void> loadSettings() async {
+    var settingsRawData = await _dbContext!.getAllData(DatabaseConstants.settingsTableName);
+    for (var row in settingsRawData) {
+      if (row["name"] == DatabaseConstants.playedSongsMaxAmountTableValueName) {
+        _playedSongsMaxAmount = int.parse(row["value"]);
+        _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
+          text: _playedSongsMaxAmount.toString(),
+          selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
+        );
       }
-    });
+    }
 
-    _dbContext!.getAllData("storageLocations").then((storageLocationsRawData) {
+    var storageLocationsRawData = await _dbContext!.getAllData(DatabaseConstants.storagePathsTableName);
+    setState(() {
       for (final {"name": name as String} in storageLocationsRawData) {
         if (!_soundStorageLocations.contains(name)) {
-          setState(() {
-            _soundStorageLocations.add(name);
-          });
+          _soundStorageLocations.add(name);
         }
       }
     });
   }
 
   void setDefualtValues() {
-    _playedSongsMaxAmount = _playedSongsMaxAmountDefault;
-    _soundStorageLocations = _soundStorageLocationsDefault;
+    _playedSongsMaxAmount = DatabaseConstants.playedSongsMaxAmountDefault;
+    _soundStorageLocations = DatabaseConstants.soundStorageLocationsDefault;
 
     saveSettings();
   }
@@ -107,93 +106,97 @@ class _SettingsViewState extends State<SettingsView> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.title),
       ),
-      body: Column(
-        children: [
-          const Text("Amount of repetitive songs prevention queue:"),
-          SizedBox(
-            width: 50,
-            child: TextField(
-              controller: _playedSongsMaxAmountInputController,
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              keyboardType: TextInputType.number
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            const Text("Amount of repetitive songs prevention queue\n(zero means this feature is disabled):"),
+            SizedBox(
+              width: 50,
+              child: TextField(
+                controller: _playedSongsMaxAmountInputController,
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                keyboardType: TextInputType.number
+              ),
             ),
-          ),
-          const Text("Storage paths to look for sound files:"),
-          SizedBox(
-            width: double.infinity,
-            height: 300,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => {
-                        if (_soundStorageLocationsInputController.value.text != Constants.stringEmpty) {
+            const Text("Storage paths to look for sound files:"),
+            SizedBox(
+              width: double.infinity,
+              height: 300,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => {
+                          if (_soundStorageLocationsInputController.value.text != Constants.stringEmpty) {
+                            setState(() {
+                              _soundStorageLocations.add(_soundStorageLocationsInputController.value.text);
+                            }),
+                            _soundStorageLocationsInputController.clear()
+                          }
+                        },
+                        child: const Text("+")
+                      ),
+                      ElevatedButton(
+                        onPressed: () => {
                           setState(() {
-                            _soundStorageLocations.add(_soundStorageLocationsInputController.value.text);
+                            _soundStorageLocations.remove(_currentlySelectedStoragePath);
                           }),
-                          _soundStorageLocationsInputController.clear()
-                        }
-                      },
-                      child: const Text("+")
-                    ),
-                    ElevatedButton(
-                      onPressed: () => {
-                        setState(() {
-                          _soundStorageLocations.remove(_currentlySelectedStoragePath);
-                        }),
-                        _currentlySelectedStoragePath = null
-                      },
-                      child: const Text("-")
-                    ),
-                  ],
+                          _currentlySelectedStoragePath = null
+                        },
+                        child: const Text("-")
+                      ),
+                    ],
+                  ),
+                  createBaseInputbox(_soundStorageLocationsInputController, false),
+                  SingleChildScrollView(
+                    child: createPathsListWidget(context),
+                  )
+                ],
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    _playedSongsMaxAmount = int.parse(_playedSongsMaxAmountInputController.value.text);
+                    saveSettings();
+                  },
+                  child: const Text("Save")
                 ),
-                createBaseInputbox(_soundStorageLocationsInputController, false),
-                SingleChildScrollView(
-                  child: createPathsListWidget(context),
+                ElevatedButton(
+                  onPressed: () {
+                    loadSettings();
+                    setState(() {
+                      _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
+                      _currentlySelectedStoragePath = null;
+                    });
+                  },
+                  child: const Text("Cancel")
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setDefualtValues();
+                    setState(() {
+                      _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
+                        text: _playedSongsMaxAmount.toString(),
+                        selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
+                      );
+                      _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
+                    });
+                  },
+                  child: const Text("Load Default")
                 )
               ],
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  _playedSongsMaxAmount = int.parse(_playedSongsMaxAmountInputController.value.text);
-                  saveSettings();
-                },
-                child: const Text("Save")
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  loadSettings();
-                  setState(() {
-                    _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
-                  });
-                },
-                child: const Text("Cancel")
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  setDefualtValues();
-                  setState(() {
-                    _playedSongsMaxAmountInputController.value = _playedSongsMaxAmountInputController.value.copyWith(
-                      text: _playedSongsMaxAmount.toString(),
-                      selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
-                    );
-                    _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
-                  });
-                },
-                child: const Text("Load Default")
-              )
-            ],
-          )
-        ]
-      ),
+            )
+          ]
+        ),
+      )
     );
   }
 }
