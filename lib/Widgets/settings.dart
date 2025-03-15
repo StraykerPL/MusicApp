@@ -8,8 +8,7 @@ import 'package:strayker_music/Shared/get_default_icon_widget.dart';
 import 'package:filesystem_picker/filesystem_picker.dart';
 
 class SettingsView extends StatefulWidget {
-  const SettingsView({super.key, required this.title});
-  final String title;
+  const SettingsView({super.key});
 
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -104,7 +103,7 @@ class _SettingsViewState extends State<SettingsView> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text(widget.title),
+        title: const Text("Settings"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -180,6 +179,7 @@ class _SettingsViewState extends State<SettingsView> {
                     setState(() {
                       _currentlySelectedStoragePath = null;
                     });
+                    Navigator.pop(context);
                   },
                   child: const Text("Cancel")
                 ),

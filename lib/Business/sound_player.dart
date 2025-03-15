@@ -19,15 +19,14 @@ final class SoundPlayer {
     });
   }
 
-  StreamSubscription<bool> isSoundPlaying() {
-    return _player.playingStream.listen(null);
+  Stream<bool> isSoundPlaying() {
+    return _player.playingStream;
   }
 
   Future<void> playNewSong() async {
     _player.pause();
-    var value = await _session.setActive(true);
     
-    if(value) {
+    if(await _session.setActive(true)) {
       _player.setAudioSource(
         AudioSource.file(
           currentSong!.filePath,
@@ -36,6 +35,9 @@ final class SoundPlayer {
       ).whenComplete(() {
         _player.play();
       });
+    }
+    else {
+      _player.pause();
     }
   }
 
@@ -46,5 +48,9 @@ final class SoundPlayer {
     else {
       _player.play();
     }
+  }
+
+  Future<void> dispose() async {
+    await _player.dispose();
   }
 }
