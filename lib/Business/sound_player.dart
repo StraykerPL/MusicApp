@@ -24,7 +24,7 @@ final class SoundPlayer {
   }
 
   Future<void> playNewSong() async {
-    _player.stop();
+    _player.pause();
     var value = await _session.setActive(true);
     
     if(value) {

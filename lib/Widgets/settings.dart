@@ -107,10 +107,10 @@ class _SettingsViewState extends State<SettingsView> {
         title: Text(widget.title),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            const Text("Amount of repetitive songs prevention queue\n(zero means this feature is disabled):"),
+            const Text("Amount of repetitive songs prevention queue\n(zero means this feature is disabled):", textAlign: TextAlign.center,),
             SizedBox(
               width: 50,
               child: TextField(

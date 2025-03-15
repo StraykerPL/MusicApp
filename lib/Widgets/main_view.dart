@@ -165,7 +165,7 @@ class _MainViewState extends State<MainView> {
               children: <Widget>[
                 Text('Version: ${_packageInfo.version}+${_packageInfo.buildNumber}\n\nOS Version: ${Platform.operatingSystemVersion}\n\nDart: ${Platform.version}'),
                 const Image(image: AssetImage('assets/logo.png')),
-                const Text("Copyright © 2018-actual Daniel Strayker Nowak and Strayker Software Contributors\nAll rights reserved")
+                const Text("Copyright © 2018-actual Daniel Strayker Nowak\nAll rights reserved")
               ],
             ),
           ),

@@ -7,10 +7,6 @@ import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
 final class SoundFilesReader {
-  // final List<String> directories = [
-  //   '/storage/emulated/0/MicroSD/Muzyka',
-  //   '/storage/emulated/0/MicroSD/Muzyka One Republic'
-  // ];
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
   Future<List<MusicFile>> getMusicFiles() async {
