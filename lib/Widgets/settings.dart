@@ -1,10 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
-import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/get_default_icon_widget.dart';
+import 'package:filesystem_picker/filesystem_picker.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key, required this.title});
@@ -17,7 +18,6 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   DatabaseHelper? _dbContext;
   final TextEditingController _playedSongsMaxAmountInputController = TextEditingController();
-  final TextEditingController _soundStorageLocationsInputController = TextEditingController();
 
   int _playedSongsMaxAmount = 0;
   List<String> _soundStorageLocations = [];
@@ -51,13 +51,13 @@ class _SettingsViewState extends State<SettingsView> {
     }
 
     var storageLocationsRawData = await _dbContext!.getAllData(DatabaseConstants.storagePathsTableName);
-    setState(() {
-      for (final {"name": name as String} in storageLocationsRawData) {
-        if (!_soundStorageLocations.contains(name)) {
+    for (final {"name": name as String} in storageLocationsRawData) {
+      if (!_soundStorageLocations.contains(name)) {
+        setState(() {
           _soundStorageLocations.add(name);
-        }
+        });
       }
-    });
+    }
   }
 
   void setDefualtValues() {
@@ -131,12 +131,18 @@ class _SettingsViewState extends State<SettingsView> {
                   Row(
                     children: [
                       ElevatedButton(
-                        onPressed: () => {
-                          if (_soundStorageLocationsInputController.value.text != Constants.stringEmpty) {
+                        onPressed: () async {
+                          var ok = await FilesystemPicker.open(
+                            title: 'Folder Select',
+                            context: context,
+                            rootDirectory: Directory.fromUri(Uri(path: "/storage/emulated/0")),
+                            fsType: FilesystemType.folder,
+                            pickText: 'Add selected folder',
+                          );
+                          if (ok != null) {
                             setState(() {
-                              _soundStorageLocations.add(_soundStorageLocationsInputController.value.text);
-                            }),
-                            _soundStorageLocationsInputController.clear()
+                              _soundStorageLocations.add(ok);
+                            });
                           }
                         },
                         child: const Text("+")
@@ -152,7 +158,6 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ],
                   ),
-                  createBaseInputbox(_soundStorageLocationsInputController, false),
                   SingleChildScrollView(
                     child: createPathsListWidget(context),
                   )
@@ -173,7 +178,6 @@ class _SettingsViewState extends State<SettingsView> {
                   onPressed: () {
                     loadSettings();
                     setState(() {
-                      _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
                       _currentlySelectedStoragePath = null;
                     });
                   },
@@ -187,7 +191,6 @@ class _SettingsViewState extends State<SettingsView> {
                         text: _playedSongsMaxAmount.toString(),
                         selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
                       );
-                      _soundStorageLocationsInputController.value = _soundStorageLocationsInputController.value.copyWith(text: Constants.stringEmpty);
                     });
                   },
                   child: const Text("Load Default")
