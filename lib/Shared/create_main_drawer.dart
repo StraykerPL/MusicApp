@@ -24,7 +24,7 @@ Future<void> _showAboutAppDialog(BuildContext context) async {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('OK'),
+              child: const Text('OK', style: TextStyle(color: Colors.white)),
               onPressed: () {
                 Navigator.of(context).pop();
               },

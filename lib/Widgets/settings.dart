@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
-import 'package:strayker_music/Shared/get_default_icon_widget.dart';
+import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:filesystem_picker/filesystem_picker.dart';
 
 class SettingsView extends StatefulWidget {
@@ -144,7 +144,7 @@ class _SettingsViewState extends State<SettingsView> {
                             });
                           }
                         },
-                        child: const Text("+")
+                        child: const Text("+", style: TextStyle(color: Colors.white))
                       ),
                       ElevatedButton(
                         onPressed: () => {
@@ -153,7 +153,7 @@ class _SettingsViewState extends State<SettingsView> {
                           }),
                           _currentlySelectedStoragePath = null
                         },
-                        child: const Text("-")
+                        child: const Text("-", style: TextStyle(color: Colors.white))
                       ),
                     ],
                   ),
@@ -171,7 +171,7 @@ class _SettingsViewState extends State<SettingsView> {
                     _playedSongsMaxAmount = int.parse(_playedSongsMaxAmountInputController.value.text);
                     saveSettings();
                   },
-                  child: const Text("Save")
+                  child: const Text("Save", style: TextStyle(color: Colors.white))
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -181,7 +181,7 @@ class _SettingsViewState extends State<SettingsView> {
                     });
                     Navigator.pop(context);
                   },
-                  child: const Text("Cancel")
+                  child: const Text("Cancel", style: TextStyle(color: Colors.white))
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -193,7 +193,7 @@ class _SettingsViewState extends State<SettingsView> {
                       );
                     });
                   },
-                  child: const Text("Load Default")
+                  child: const Text("Load Default", style: TextStyle(color: Colors.white))
                 )
               ],
             )

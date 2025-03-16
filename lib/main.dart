@@ -8,6 +8,7 @@ Future<void> main() async {
     androidNotificationChannelName: 'Audio playback',
     androidNotificationOngoing: true,
   );
+
   runApp(const MyApp());
 }
 

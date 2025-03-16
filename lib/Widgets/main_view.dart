@@ -8,7 +8,7 @@ import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/create_main_drawer.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
-import 'package:strayker_music/Shared/get_default_icon_widget.dart';
+import 'package:strayker_music/Shared/icon_widgets.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key, required this.title});
@@ -93,7 +93,7 @@ class _MainViewState extends State<MainView> {
               _musicListScrollControl.jumpTo(index.toDouble());
             }
           },
-          child: getDefaultIconWidget(context, Icons.music_note),
+          child: getColoredIconWidget(context, Colors.white, Icons.music_note),
         ),
         ElevatedButton(
           onPressed: () {
@@ -102,21 +102,21 @@ class _MainViewState extends State<MainView> {
               _isSearchBoxVisible = !_isSearchBoxVisible;
             });
           },
-          child: getDefaultIconWidget(context, Icons.search),
+          child: getColoredIconWidget(context, Colors.white, Icons.search),
         ),
         ElevatedButton(
           onPressed: !_isCurrentlyPlaying && _soundPlayer.currentSong == null ? null : () => {
             _soundPlayer.resumeOrPauseSong()
           },
           child: _isCurrentlyPlaying && _soundPlayer.currentSong != null ?
-            getDefaultIconWidget(context, Icons.pause) :
-            getDefaultIconWidget(context, Icons.play_arrow)
+            getColoredIconWidget(context, Colors.white, Icons.pause) :
+            getColoredIconWidget(context, Colors.white, Icons.play_arrow)
         ),
         ElevatedButton(
           onPressed: () {
             _soundManager.playRandomMusic();
           },
-          child: getDefaultIconWidget(context, Icons.shuffle),
+          child: getColoredIconWidget(context, Colors.white, Icons.shuffle),
         ),
       ],
     );
