@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:strayker_music/Business/sound_collection_manager.dart';
-import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
@@ -10,16 +9,16 @@ import 'package:strayker_music/Shared/create_main_drawer.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
 
-class MainView extends StatefulWidget {
-  const MainView({super.key, required this.title});
+class PlaylistView extends StatefulWidget {
+  const PlaylistView({super.key, required this.title, required this.soundList});
   final String title;
+  final List<MusicFile> soundList;
 
   @override
-  State<MainView> createState() => _MainViewState();
+  State<PlaylistView> createState() => _PlaylistViewState();
 }
 
-class _MainViewState extends State<MainView> {
-  final SoundFilesReader _filesReader = SoundFilesReader();
+class _PlaylistViewState extends State<PlaylistView> {
   final ScrollController _musicListScrollControl = ScrollController();
   final TextEditingController _searchMusicInputController = TextEditingController();
   final SoundPlayer _soundPlayer = SoundPlayer();
@@ -30,14 +29,12 @@ class _MainViewState extends State<MainView> {
   bool _isSearchBoxVisible = false;
   late List<MusicFile> displayedFiles = [];
 
-  _MainViewState() {
+  _PlaylistViewState() {
     _searchMusicInputController.addListener(onSearchInputChanged);
-    _filesReader.getMusicFiles().then((musicFiles) {
-      _soundCollectionManager = SoundCollectionManager(player: _soundPlayer, songs: musicFiles);
+    _soundCollectionManager = SoundCollectionManager(player: _soundPlayer, songs: widget.soundList);
       setState(() {
         displayedFiles = _soundCollectionManager.availableSongs;
       });
-    });
     _playerStatusSubscription = _soundPlayer.isSoundPlaying().listen((value) {
       setState(() {
         _isCurrentlyPlaying = value;
@@ -92,7 +89,7 @@ class _MainViewState extends State<MainView> {
               _musicListScrollControl.jumpTo(index.toDouble());
             }
           },
-          child: getColoredIconWidget(context, Theme.of(context).primaryTextTheme.displayMedium!.color!, Icons.music_note),
+          child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.music_note),
         ),
         ElevatedButton(
           onPressed: () {
@@ -170,7 +167,7 @@ class _MainViewState extends State<MainView> {
               child: 
               displayedFiles.isNotEmpty ?
                 createMusicListWidget(context) :
-                const Text("Welcome to Strayker Music!\n\nNo sound files can be displayed. If you think it's error, check your searching criteria, filesystem permissions and app's storage settings.", softWrap: true, textAlign: TextAlign.center),
+                const Text("Displaying empty playlist.\n\nIf you think it's error, check your playlist's files, searching criteria, filesystem permissions and app's storage settings.", softWrap: true, textAlign: TextAlign.center),
             )
           )
         ],

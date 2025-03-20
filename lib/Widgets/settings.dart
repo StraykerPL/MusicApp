@@ -15,7 +15,7 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  DatabaseHelper? _dbContext;
+  final DatabaseHelper _dbContext = DatabaseHelper();
   final TextEditingController _playedSongsMaxAmountInputController = TextEditingController();
 
   int _playedSongsMaxAmount = 0;
@@ -23,7 +23,7 @@ class _SettingsViewState extends State<SettingsView> {
   String? _currentlySelectedStoragePath;
 
   Future<void> saveSettings() async {
-    await _dbContext!.updateDataByName(
+    await _dbContext.updateDataByName(
       DatabaseConstants.settingsTableName,
       DatabaseConstants.playedSongsMaxAmountTableValueName,
       {"value": _playedSongsMaxAmount});
@@ -33,12 +33,12 @@ class _SettingsViewState extends State<SettingsView> {
       sumUpData.add({"name": storagePath});
     }
 
-    await _dbContext!.cleanTable(DatabaseConstants.storagePathsTableName);
-    await _dbContext!.insertData(DatabaseConstants.storagePathsTableName, sumUpData);
+    await _dbContext.cleanTable(DatabaseConstants.storagePathsTableName);
+    await _dbContext.insertData(DatabaseConstants.storagePathsTableName, sumUpData);
   }
 
   Future<void> loadSettings() async {
-    var settingsRawData = await _dbContext!.getAllData(DatabaseConstants.settingsTableName);
+    var settingsRawData = await _dbContext.getAllData(DatabaseConstants.settingsTableName);
     for (var row in settingsRawData) {
       if (row["name"] == DatabaseConstants.playedSongsMaxAmountTableValueName) {
         _playedSongsMaxAmount = int.parse(row["value"]);
@@ -49,7 +49,7 @@ class _SettingsViewState extends State<SettingsView> {
       }
     }
 
-    var storageLocationsRawData = await _dbContext!.getAllData(DatabaseConstants.storagePathsTableName);
+    var storageLocationsRawData = await _dbContext.getAllData(DatabaseConstants.storagePathsTableName);
     for (final {"name": name as String} in storageLocationsRawData) {
       if (!_soundStorageLocations.contains(name)) {
         setState(() {
@@ -69,7 +69,6 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void initState() {
     super.initState();
-    _dbContext = DatabaseHelper();
     loadSettings();
   }
 
@@ -119,6 +118,7 @@ class _SettingsViewState extends State<SettingsView> {
                 },
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 keyboardType: TextInputType.number
+                // TODO: Add validation to not allow input of number surpassing max amount of available sound files.
               ),
             ),
             const Text("Storage paths to look for sound files:"),
@@ -131,6 +131,7 @@ class _SettingsViewState extends State<SettingsView> {
                     children: [
                       ElevatedButton(
                         onPressed: () async {
+                          // TODO: Add validation to not allow access to restricted areas of filesystem.
                           var ok = await FilesystemPicker.open(
                             title: 'Folder Select',
                             context: context,
@@ -144,7 +145,7 @@ class _SettingsViewState extends State<SettingsView> {
                             });
                           }
                         },
-                        child: const Text("+", style: TextStyle(color: Colors.white))
+                        child: Text("+", style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color))
                       ),
                       ElevatedButton(
                         onPressed: () => {
@@ -153,7 +154,7 @@ class _SettingsViewState extends State<SettingsView> {
                           }),
                           _currentlySelectedStoragePath = null
                         },
-                        child: const Text("-", style: TextStyle(color: Colors.white))
+                        child: Text("-", style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color))
                       ),
                     ],
                   ),
@@ -171,7 +172,7 @@ class _SettingsViewState extends State<SettingsView> {
                     _playedSongsMaxAmount = int.parse(_playedSongsMaxAmountInputController.value.text);
                     saveSettings();
                   },
-                  child: const Text("Save", style: TextStyle(color: Colors.white))
+                  child: Text("Save", style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color))
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -181,7 +182,7 @@ class _SettingsViewState extends State<SettingsView> {
                     });
                     Navigator.pop(context);
                   },
-                  child: const Text("Cancel", style: TextStyle(color: Colors.white))
+                  child: Text("Cancel", style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color))
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -193,7 +194,7 @@ class _SettingsViewState extends State<SettingsView> {
                       );
                     });
                   },
-                  child: const Text("Load Default", style: TextStyle(color: Colors.white))
+                  child: Text("Load Default", style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color))
                 )
               ],
             )

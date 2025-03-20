@@ -4,13 +4,13 @@ import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
-final class SoundFilesManager {
+final class SoundCollectionManager {
   late final SoundPlayer _soundPlayer;
   List<MusicFile> availableSongs = [];
   List<MusicFile> playedSongs = [];
   int _playedSongsMaxAmount = 0;
 
-  SoundFilesManager({required SoundPlayer player, required List<MusicFile> songs}) {
+  SoundCollectionManager({required SoundPlayer player, required List<MusicFile> songs}) {
     _soundPlayer = player;
     availableSongs = songs;
     availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));

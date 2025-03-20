@@ -3,6 +3,8 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'Widgets/main_view.dart';
 
 Future<void> main() async {
+  // TODO: Add DI container.
+  // TODO: Migrate from Just Audio Background package to Audio Service.
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
     androidNotificationChannelName: 'Audio playback',

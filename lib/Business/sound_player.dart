@@ -26,6 +26,7 @@ final class SoundPlayer {
   Future<void> playNewSong() async {
     _player.pause();
     
+    // TODO: Add handling for audio session's states (Audio Session package).
     if(await _session.setActive(true)) {
       _player.setAudioSource(
         AudioSource.file(

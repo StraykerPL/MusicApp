@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:strayker_music/Widgets/settings.dart';
@@ -24,7 +25,7 @@ Future<void> _showAboutAppDialog(BuildContext context) async {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('OK', style: TextStyle(color: Colors.white)),
+              child: Text('OK', style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -35,10 +36,25 @@ Future<void> _showAboutAppDialog(BuildContext context) async {
     );
   }
 
+TreeNode _buildTreeNodes() {
+  // TODO: Replace placeholder with database read logic.
+  final List<String> playlists = [
+    "Playlist 1",
+    "PlayList 2",
+    "Playlist 3",
+  ];
+  TreeNode rootNode = TreeNode(data: "Playlists");
+  
+  for (int i = 0; i < playlists.length; i++) {
+    rootNode.add(TreeNode(key: i.toString(), data: playlists[i]));
+  }
+
+  return rootNode;
+}
+
 Drawer createMainDrawer(BuildContext context) {
   return Drawer(
-    child: ListView(
-      padding: EdgeInsets.zero,
+    child: Column(
       children: [
         DrawerHeader(
           decoration: BoxDecoration(
@@ -49,7 +65,37 @@ Drawer createMainDrawer(BuildContext context) {
             //   alignment: Alignment.bottomLeft
             // ),
           ),
-          child: const Text("Strayker Music"),
+          child: const SizedBox(
+            width: double.infinity,
+            child: Text("Strayker Music"),
+          ),
+        ),
+        Expanded(
+          child: TreeView.simple(
+            padding: const EdgeInsets.only(right: 16.0),
+            tree: _buildTreeNodes(),
+            expansionIndicatorBuilder: (context, node) => ChevronIndicator.rightDown(
+              alignment: Alignment.centerRight,
+              tree: node,
+              color: Theme.of(context).textTheme.displayLarge?.color,
+            ),
+            onItemTap: (item) {
+              // TODO: Add indicator to ListTile for currently active playlist.
+              // if (!item.isRoot) {
+              //   ScaffoldMessenger.of(context).showSnackBar(
+              //     SnackBar(content: Text("Selected: ${item.data}")),
+              //   );
+              // }
+            },
+            builder: (context, node) => ListTile(
+              title: Text(
+                node.data.toString(),
+                style: TextStyle(
+                  fontWeight: node.isLeaf ? FontWeight.normal : FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         ),
         ListTile(
           title: const Text("Settings"),
