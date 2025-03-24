@@ -8,14 +8,51 @@ final class SoundPlayer {
   final _player = AudioPlayer();
   late AudioSession _session;
   MusicFile? currentSong;
+  late StreamSubscription<void> _noisyCheckStream;
+  late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
+  late StreamSubscription<AudioDevicesChangedEvent> _deviceChangeEventStream;
 
   SoundPlayer() {
     _player.setLoopMode(LoopMode.all);
-    AudioSession.instance.then((completedSession) {
-      completedSession.configure(const AudioSessionConfiguration.music());
-      _session = completedSession;
+    AudioSession.instance.then((session) {
+      session.configure(const AudioSessionConfiguration.music());
+      _session = session;
 
-      return completedSession;
+       _interruptEventStream = _session.interruptionEventStream.listen((event) async {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              await _player.pause();
+              break;
+
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              await _player.pause();
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              await _player.play();
+              break;
+
+            case AudioInterruptionType.pause:
+              await _player.play();
+              
+            case AudioInterruptionType.unknown:
+              await _player.pause();
+              break;
+          }
+        }
+      });
+
+      _noisyCheckStream = session.becomingNoisyEventStream.listen((_) async {
+        await _player.pause();
+      });
+
+      _deviceChangeEventStream = session.devicesChangedEventStream.listen((event) async {
+        await _player.pause();
+      });
     });
   }
 
@@ -24,34 +61,32 @@ final class SoundPlayer {
   }
 
   Future<void> playNewSong() async {
-    _player.pause();
+     await _player.pause();
     
-    // TODO: Add handling for audio session's states (Audio Session package).
     if(await _session.setActive(true)) {
-      _player.setAudioSource(
-        AudioSource.file(
-          currentSong!.filePath,
-          tag: currentSong!.mediaItemMetaData,
-        )
-      ).whenComplete(() {
-        _player.play();
-      });
+      await _player.setAudioSource(
+        AudioSource.file(currentSong!.filePath,tag: currentSong!.mediaItemMetaData,)
+      );
+      await _player.play();
     }
     else {
-      _player.pause();
+      await _player.pause();
     }
   }
 
-  void resumeOrPauseSong() {
+  Future<void> resumeOrPauseSong() async {
     if(_player.playing) {
-      _player.pause();
+      await _player.pause();
     }
     else {
-      _player.play();
+      await _player.play();
     }
   }
 
   Future<void> dispose() async {
     await _player.dispose();
+    await _noisyCheckStream.cancel();
+    await _interruptEventStream.cancel();
+    await _deviceChangeEventStream.cancel();
   }
 }
