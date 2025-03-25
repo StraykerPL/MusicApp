@@ -1,4 +1,4 @@
-import 'package:just_audio_background/just_audio_background.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Constants/constants.dart';
 
 interface class MusicFile {

@@ -1,10 +1,11 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
-final class SoundPlayer {
+final class SoundPlayer extends BaseAudioHandler {
   final _player = AudioPlayer();
   late AudioSession _session;
   MusicFile? currentSong;
@@ -14,6 +15,7 @@ final class SoundPlayer {
 
   SoundPlayer() {
     _player.setLoopMode(LoopMode.all);
+    _player.playbackEventStream.map(transformEvent).pipe(playbackState);
     AudioSession.instance.then((session) {
       session.configure(const AudioSessionConfiguration.music());
       _session = session;
@@ -64,6 +66,7 @@ final class SoundPlayer {
      await _player.pause();
     
     if(await _session.setActive(true)) {
+      mediaItem.add(currentSong!.mediaItemMetaData);
       await _player.setAudioSource(
         AudioSource.file(currentSong!.filePath,tag: currentSong!.mediaItemMetaData,)
       );
@@ -81,6 +84,32 @@ final class SoundPlayer {
     else {
       await _player.play();
     }
+  }
+
+  @override
+  Future<void> play() => playNewSong();
+
+  @override
+  Future<void> pause() => resumeOrPauseSong();
+
+  @override
+  Future<void> stop() => _player.stop();
+
+  PlaybackState transformEvent(PlaybackEvent event) {
+    return PlaybackState(
+      controls: [
+        _player.playing ? MediaControl.pause : MediaControl.play,
+        MediaControl.stop,
+      ],
+      processingState: const {
+        ProcessingState.idle: AudioProcessingState.idle,
+        ProcessingState.loading: AudioProcessingState.loading,
+        ProcessingState.buffering: AudioProcessingState.buffering,
+        ProcessingState.ready: AudioProcessingState.ready,
+        ProcessingState.completed: AudioProcessingState.completed,
+      }[_player.processingState]!,
+      playing: _player.playing,
+    );
   }
 
   Future<void> dispose() async {

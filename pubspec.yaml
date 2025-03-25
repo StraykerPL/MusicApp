@@ -38,13 +38,13 @@ dependencies:
   just_audio: ^0.9.38
   permission_handler: ^11.3.1
   flutter_native_splash: ^2.4.1
-  just_audio_background: ^0.0.1-beta.13
   audio_session: ^0.1.21
   package_info_plus: ^8.0.2
   sqflite: ^2.3.3+1
   path: ^1.9.0
   filesystem_picker: ^4.1.0
   animated_tree_view: ^2.3.0
+  audio_service: ^0.18.17
 
 dev_dependencies:
   flutter_test:
