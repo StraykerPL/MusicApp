@@ -1,14 +1,19 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio_background/just_audio_background.dart';
-import 'Widgets/main_view.dart';
+import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Widgets/main_view.dart';
+
+late final BaseAudioHandler _audioHandler;
 
 Future<void> main() async {
   // TODO: Add DI container.
-  // TODO: Migrate from Just Audio Background package to Audio Service.
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
-    androidNotificationChannelName: 'Audio playback',
-    androidNotificationOngoing: true,
+  // TODO: Add Redux container.
+  _audioHandler = await AudioService.init(
+    builder: () => SoundPlayer(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'pl.straykersoftware.strayker_music.channel.audio',
+      androidNotificationChannelName: 'Strayker Music',
+    ),
   );
 
   runApp(const MyApp());
@@ -31,7 +36,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.dark,
-      home: const MainView(title: 'Strayker Music'),
+      home: MainView(title: 'Strayker Music', audioHandler: _audioHandler),
     );
   }
 }
