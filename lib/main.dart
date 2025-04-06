@@ -1,12 +1,13 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:strayker_music/Business/sound_player.dart';
-import 'Widgets/main_view.dart';
+import 'package:strayker_music/Widgets/main_view.dart';
 
 late final BaseAudioHandler _audioHandler;
 
 Future<void> main() async {
   // TODO: Add DI container.
+  // TODO: Add Redux container.
   _audioHandler = await AudioService.init(
     builder: () => SoundPlayer(),
     config: const AudioServiceConfig(

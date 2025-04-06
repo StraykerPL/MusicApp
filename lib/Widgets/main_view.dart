@@ -84,8 +84,8 @@ class _MainViewState extends State<MainView> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ElevatedButton(
-          onPressed: _isCurrentlyPlaying ? () {
-            var indexCalc = _soundCollectionManager.availableSongs.indexOf(widget.audioHandler.mediaItem.value!.displayTitle as MusicFile);
+          onPressed: _isCurrentlyPlaying || _currentSong != Constants.stringEmpty ? () {
+            var indexCalc = _soundCollectionManager.availableSongs.indexWhere((song) => song.name == _currentSong);
             if(index != indexCalc) {
               index = indexCalc;
               var padding = MediaQuery.of(context).viewPadding;
@@ -110,14 +110,17 @@ class _MainViewState extends State<MainView> {
           child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.search),
         ),
         ElevatedButton(
-          onPressed: _isCurrentlyPlaying ? () => widget.audioHandler.pause() : () => widget.audioHandler.play(),
-          child: _isCurrentlyPlaying ?
-            getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.play_arrow) :
-            getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.pause)
+          onPressed: _isCurrentlyPlaying || _currentSong != Constants.stringEmpty ? () => widget.audioHandler.pause() : null,
+          child: _isCurrentlyPlaying && _currentSong != Constants.stringEmpty ?
+            getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.pause) :
+            getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.play_arrow)
         ),
         ElevatedButton(
           onPressed: () {
             _soundCollectionManager.playRandomMusic();
+            widget.audioHandler.mediaItem.listen((item) {
+              _currentSong = item?.title ?? Constants.stringEmpty;
+            });
           },
           child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.shuffle),
         ),
@@ -142,7 +145,8 @@ class _MainViewState extends State<MainView> {
           trailing: displayedFiles[index].name == _currentSong ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
-            _soundCollectionManager.selectAndPlaySong(displayedFiles[index].name)
+            _currentSong = displayedFiles[index].name,
+            _soundCollectionManager.selectAndPlaySong(_currentSong)
           },
         );
       },
