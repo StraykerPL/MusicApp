@@ -1,22 +1,41 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:strayker_music/Business/database_helper.dart';
+import 'package:strayker_music/Business/default_audio_handler.dart';
+import 'package:strayker_music/Business/sound_collection_manager.dart';
+import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
-import 'package:strayker_music/Widgets/main_view.dart';
-
-late final BaseAudioHandler _audioHandler;
+import 'package:strayker_music/Constants/constants.dart';
+import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Widgets/playlist_view.dart';
 
 Future<void> main() async {
-  // TODO: Add DI container.
-  // TODO: Add Redux container.
-  _audioHandler = await AudioService.init(
-    builder: () => SoundPlayer(),
+  final SoundFilesReader filesReader = SoundFilesReader();
+
+  final audioHandler = await AudioService.init(
+    builder: () => DefaultAudioHandler(),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'pl.straykersoftware.strayker_music.channel.audio',
-      androidNotificationChannelName: 'Strayker Music',
+      androidNotificationChannelName: Constants.appName,
     ),
   );
+  List<MusicFile> files = await filesReader.getMusicFiles();
 
-  runApp(const MyApp());
+  // TODO: Add Redux container.
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider<DatabaseHelper>(create: (_) => DatabaseHelper()),
+        ProxyProvider0<SoundPlayer>(update: (_, __) => SoundPlayer(handler: audioHandler)),
+        ProxyProvider0<SoundCollectionManager>(update: (context, __) => SoundCollectionManager(player: context.watch<SoundPlayer>(), songs: files)),
+        ProxyProvider0<PlaylistView>(
+          update: (context, __) => PlaylistView(title: Constants.appName, audioHandler: audioHandler, soundCollectionManager: context.watch<SoundCollectionManager>())
+        )
+      ],
+      child: const MyApp(),
+    )
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -25,7 +44,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Strayker Music',
+      title: Constants.appName,
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1A2D47),
@@ -36,7 +55,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.dark,
-      home: MainView(title: 'Strayker Music', audioHandler: _audioHandler),
+      home: context.watch<PlaylistView>(),
     );
   }
 }

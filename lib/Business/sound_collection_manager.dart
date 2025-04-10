@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
@@ -9,6 +10,7 @@ final class SoundCollectionManager {
   List<MusicFile> availableSongs = [];
   List<MusicFile> playedSongs = [];
   int _playedSongsMaxAmount = 0;
+  String currentSong = Constants.stringEmpty;
 
   SoundCollectionManager({required SoundPlayer player, required List<MusicFile> songs}) {
     _soundPlayer = player;
@@ -29,6 +31,7 @@ final class SoundCollectionManager {
 
       if (_playedSongsMaxAmount == 0) {
         _soundPlayer.currentSong = randomMusicFile;
+        currentSong = randomMusicFile.name;
         _soundPlayer.playNewSong();
         break;
       }
@@ -37,6 +40,7 @@ final class SoundCollectionManager {
         if(playedSongs.length < _playedSongsMaxAmount) {
           playedSongs.add(randomMusicFile);
           _soundPlayer.currentSong = randomMusicFile;
+          currentSong = randomMusicFile.name;
           _soundPlayer.playNewSong();
           break;
         }
@@ -44,6 +48,7 @@ final class SoundCollectionManager {
           playedSongs.removeAt(0);
           playedSongs.add(randomMusicFile);
           _soundPlayer.currentSong = randomMusicFile;
+          currentSong = randomMusicFile.name;
           _soundPlayer.playNewSong();
           break;
         }
@@ -56,6 +61,7 @@ final class SoundCollectionManager {
 
   void selectAndPlaySong(String songName) {
     _soundPlayer.currentSong = availableSongs.singleWhere((songFile) => songFile.name == songName);
+    currentSong = _soundPlayer.currentSong!.name;
     _soundPlayer.playNewSong();
   }
 }

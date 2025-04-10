@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Widgets/settings.dart';
 
 Future<void> _showAboutAppDialog(BuildContext context) async {
@@ -13,7 +14,7 @@ Future<void> _showAboutAppDialog(BuildContext context) async {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Strayker Music'),
+          title: const Text(Constants.appName),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
@@ -67,7 +68,7 @@ Drawer createMainDrawer(BuildContext context) {
           ),
           child: const SizedBox(
             width: double.infinity,
-            child: Text("Strayker Music"),
+            child: Text(Constants.appName),
           ),
         ),
         Expanded(
