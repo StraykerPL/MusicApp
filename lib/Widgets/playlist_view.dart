@@ -2,12 +2,13 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:strayker_music/Business/sound_collection_manager.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
-import 'package:strayker_music/Shared/create_main_drawer.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
+import 'package:strayker_music/Shared/main_drawer.dart';
 
 class PlaylistView extends StatefulWidget {
   const PlaylistView({super.key, required this.title, required this.audioHandler, required this.soundCollectionManager});
@@ -109,9 +110,6 @@ class _PlaylistView extends State<PlaylistView> {
         ElevatedButton(
           onPressed: () {
             widget.soundCollectionManager.playRandomMusic();
-            widget.audioHandler.mediaItem.listen((item) {
-              widget.soundCollectionManager.currentSong = item?.title ?? Constants.stringEmpty;
-            });
           },
           child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.shuffle),
         ),
@@ -151,7 +149,7 @@ class _PlaylistView extends State<PlaylistView> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.title),
       ),
-      drawer: createMainDrawer(context),
+      drawer: context.watch<MainDrawer>(),
       body: Column(
         children: [
           SizedBox(

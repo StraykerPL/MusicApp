@@ -8,7 +8,9 @@ import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Shared/main_drawer.dart';
 import 'package:strayker_music/Widgets/playlist_view.dart';
+import 'package:strayker_music/Widgets/settings.dart';
 
 Future<void> main() async {
   final SoundFilesReader filesReader = SoundFilesReader();
@@ -27,6 +29,8 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider<DatabaseHelper>(create: (_) => DatabaseHelper()),
+        Provider(create: (_) => const SettingsView()),
+        Provider<MainDrawer>(create: (_) => const MainDrawer()),
         ProxyProvider0<SoundPlayer>(update: (_, __) => SoundPlayer(handler: audioHandler)),
         ProxyProvider0<SoundCollectionManager>(update: (context, __) => SoundCollectionManager(player: context.watch<SoundPlayer>(), songs: files)),
         ProxyProvider0<PlaylistView>(
