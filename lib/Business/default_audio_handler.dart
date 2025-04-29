@@ -22,7 +22,7 @@ final class DefaultAudioHandler extends BaseAudioHandler {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              await _player.pause();
+              await _player.setVolume(_player.volume / 2);
               break;
 
             case AudioInterruptionType.pause:
@@ -33,14 +33,13 @@ final class DefaultAudioHandler extends BaseAudioHandler {
         } else {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              await _player.play();
+              await _player.setVolume(1.0);
               break;
 
             case AudioInterruptionType.pause:
               await _player.play();
-              
+              break;
             case AudioInterruptionType.unknown:
-              await _player.pause();
               break;
           }
         }
@@ -73,6 +72,8 @@ final class DefaultAudioHandler extends BaseAudioHandler {
     );
   }
 
+  // These overrides are not being used by code,
+  // but they are necessary for notification panel's widget to work.
   @override
   Future<void> play() async => await _player.play();
 
@@ -90,8 +91,23 @@ final class DefaultAudioHandler extends BaseAudioHandler {
       );
       await _player.play();
     }
-    else {
+  }
+
+  Future<void> resumeOrPauseSong() async {
+    if (_player.playing) {
       await _player.pause();
+    }
+    else {
+      await _player.play();
+    }
+  }
+
+  Future<void> setLoop() async {
+    if (_player.loopMode == LoopMode.all) {
+      await _player.setLoopMode(LoopMode.off);
+    }
+    else {
+      _player.setLoopMode(LoopMode.all);
     }
   }
 

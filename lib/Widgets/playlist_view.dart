@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:strayker_music/Business/sound_collection_manager.dart';
@@ -11,9 +10,8 @@ import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:strayker_music/Shared/main_drawer.dart';
 
 class PlaylistView extends StatefulWidget {
-  const PlaylistView({super.key, required this.title, required this.audioHandler, required this.soundCollectionManager});
+  const PlaylistView({super.key, required this.title, required this.soundCollectionManager});
   final String title;
-  final AudioHandler audioHandler;
   final SoundCollectionManager soundCollectionManager;
 
   @override
@@ -24,7 +22,7 @@ class _PlaylistView extends State<PlaylistView> {
   final ScrollController _musicListScrollControl = ScrollController();
   final TextEditingController _searchMusicInputController = TextEditingController();
 
-  late final StreamSubscription<PlaybackState> _playerStatusSubscription;
+  late final StreamSubscription<bool> _isPlayingSubscription;
   bool _isCurrentlyPlaying = false;
   bool _isSearchBoxVisible = false;
   late List<MusicFile> displayedFiles = [];
@@ -35,7 +33,7 @@ class _PlaylistView extends State<PlaylistView> {
 
   @override
   void initState() {
-    _playerStatusSubscription = widget.audioHandler.playbackState.listen((value) {
+    widget.soundCollectionManager.getPlaybackStateSubscription.onData((value) {
       setState(() {
         _isCurrentlyPlaying = value.playing;
       });
@@ -66,7 +64,7 @@ class _PlaylistView extends State<PlaylistView> {
   @override
   void dispose() {
     _searchMusicInputController.dispose();
-    _playerStatusSubscription.cancel();
+    _isPlayingSubscription.cancel();
     super.dispose();
   }
 
@@ -76,8 +74,8 @@ class _PlaylistView extends State<PlaylistView> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ElevatedButton(
-          onPressed: _isCurrentlyPlaying || widget.soundCollectionManager.currentSong != Constants.stringEmpty ? () {
-            var indexCalc = widget.soundCollectionManager.availableSongs.indexWhere((song) => song.name == widget.soundCollectionManager.currentSong);
+          onPressed: _isCurrentlyPlaying || widget.soundCollectionManager.currentSong != null ? () {
+            var indexCalc = widget.soundCollectionManager.availableSongs.indexWhere((song) => song == widget.soundCollectionManager.currentSong);
             if(index != indexCalc) {
               index = indexCalc;
               var padding = MediaQuery.of(context).viewPadding;
@@ -102,8 +100,8 @@ class _PlaylistView extends State<PlaylistView> {
           child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.search),
         ),
         ElevatedButton(
-          onPressed: _isCurrentlyPlaying || widget.soundCollectionManager.currentSong != Constants.stringEmpty ? () => widget.audioHandler.pause() : null,
-          child: _isCurrentlyPlaying && widget.soundCollectionManager.currentSong != Constants.stringEmpty ?
+          onPressed: _isCurrentlyPlaying || widget.soundCollectionManager.currentSong != null ? () => widget.soundCollectionManager.resumeOrPauseSong() : null,
+          child: _isCurrentlyPlaying && widget.soundCollectionManager.currentSong != null ?
             getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.pause) :
             getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.play_arrow)
         ),
@@ -131,11 +129,10 @@ class _PlaylistView extends State<PlaylistView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: displayedFiles[index].name == widget.soundCollectionManager.currentSong ?
+          trailing: displayedFiles[index] == widget.soundCollectionManager.currentSong ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
-            widget.soundCollectionManager.currentSong = displayedFiles[index].name,
-            widget.soundCollectionManager.selectAndPlaySong(widget.soundCollectionManager.currentSong)
+            widget.soundCollectionManager.selectAndPlaySong(displayedFiles[index])
           },
         );
       },

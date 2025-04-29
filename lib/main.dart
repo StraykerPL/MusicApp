@@ -34,7 +34,7 @@ Future<void> main() async {
         ProxyProvider0<SoundPlayer>(update: (_, __) => SoundPlayer(handler: audioHandler)),
         ProxyProvider0<SoundCollectionManager>(update: (context, __) => SoundCollectionManager(player: context.watch<SoundPlayer>(), songs: files)),
         ProxyProvider0<PlaylistView>(
-          update: (context, __) => PlaylistView(title: Constants.appName, audioHandler: audioHandler, soundCollectionManager: context.watch<SoundCollectionManager>())
+          update: (context, __) => PlaylistView(title: Constants.appName, soundCollectionManager: context.watch<SoundCollectionManager>())
         )
       ],
       child: const MyApp(),
