@@ -26,7 +26,13 @@ final class SoundPlayer {
     await _handler.resumeOrPauseSong();
   }
 
+  bool get isLoopModeOn => _handler.isLoopModeOn;
+
   Future<void> setLoop() async {
+    await _handler.setLoop();
+  }
+
+  Future<void> setLoopMode(bool enabled) async {
     await _handler.setLoop();
   }
 }

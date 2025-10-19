@@ -10,6 +10,7 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   late StreamSubscription<void> _noisyCheckStream;
   late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
   late StreamSubscription<AudioDevicesChangedEvent> _deviceChangeEventStream;
+  bool get isLoopModeOn => _player.loopMode == LoopMode.all;
 
   DefaultAudioHandler() {
     _player.setLoopMode(LoopMode.all);
@@ -100,6 +101,10 @@ final class DefaultAudioHandler extends BaseAudioHandler {
     else {
       await _player.play();
     }
+  }
+
+  Future<void> setLoopMode(bool enabled) async {
+    await _player.setLoopMode(enabled ? LoopMode.all : LoopMode.off);
   }
 
   Future<void> setLoop() async {

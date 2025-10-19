@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/sound_player.dart';
@@ -11,15 +12,18 @@ final class SoundCollectionManager {
   List<MusicFile> availableSongs = [];
   List<MusicFile> playedSongs = [];
   int _playedSongsMaxAmount = 0;
+  bool _loopMode = true;
   MusicFile? _currentSong;
 
   MusicFile? get currentSong => _currentSong;
+  bool get isLoopModeOn => _loopMode;
   StreamSubscription<PlaybackState> get getPlaybackStateSubscription => _soundPlayer.getPlaybackStateSubscription();
 
   SoundCollectionManager({required SoundPlayer player, required List<MusicFile> songs}) {
     _soundPlayer = player;
     availableSongs = songs;
     availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
+    _loadSettings();
   }
 
   Future<void> playRandomMusic() async {
@@ -67,8 +71,26 @@ final class SoundCollectionManager {
     await _soundPlayer.resumeOrPauseSong();
   }
 
+  Future<void> _loadSettings() async {
+    final dbContext = DatabaseHelper();
+    final settings = await dbContext.getAllData(DatabaseConstants.settingsTableName);
+    for (final {"name": settingName, "value": settingValue} in settings) {
+      if (settingName == DatabaseConstants.loopModeTableValueName) {
+        _loopMode = settingValue == "true";
+        await _soundPlayer.setLoopMode(_loopMode);
+        break;
+      }
+    }
+  }
+
   Future<void> setLoop() async {
-    await _soundPlayer.setLoop();
+    _loopMode = !_loopMode;
+    await _soundPlayer.setLoopMode(_loopMode);
+  }
+
+  Future<void> setLoopMode(bool enabled) async {
+    _loopMode = enabled;
+    await _soundPlayer.setLoopMode(_loopMode);
   }
 
   MusicFile _getRandomMusicFile() {

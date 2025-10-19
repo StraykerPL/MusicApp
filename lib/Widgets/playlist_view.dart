@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:strayker_music/Business/playlist_manager.dart';
 import 'package:strayker_music/Business/sound_collection_manager.dart';
+import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
@@ -10,9 +12,8 @@ import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:strayker_music/Shared/main_drawer.dart';
 
 class PlaylistView extends StatefulWidget {
-  const PlaylistView({super.key, required this.title, required this.soundCollectionManager});
+  const PlaylistView({super.key, required this.title});
   final String title;
-  final SoundCollectionManager soundCollectionManager;
 
   @override
   State<PlaylistView> createState() => _PlaylistView();
@@ -22,10 +23,11 @@ class _PlaylistView extends State<PlaylistView> {
   final ScrollController _musicListScrollControl = ScrollController();
   final TextEditingController _searchMusicInputController = TextEditingController();
 
-  late final StreamSubscription<bool> _isPlayingSubscription;
   bool _isCurrentlyPlaying = false;
   bool _isSearchBoxVisible = false;
+  bool _isLoopModeOn = true;
   late List<MusicFile> displayedFiles = [];
+  late final SoundCollectionManager _soundCollectionManager = SoundCollectionManager(player: context.read<SoundPlayer>(), songs: context.read<List<MusicFile>>());
 
   _PlaylistView() {
     _searchMusicInputController.addListener(onSearchInputChanged);
@@ -33,24 +35,32 @@ class _PlaylistView extends State<PlaylistView> {
 
   @override
   void initState() {
-    widget.soundCollectionManager.getPlaybackStateSubscription.onData((value) {
+    _soundCollectionManager.getPlaybackStateSubscription.onData((value) {
       setState(() {
         _isCurrentlyPlaying = value.playing;
       });
     });
-    displayedFiles = widget.soundCollectionManager.availableSongs;
+    displayedFiles = _soundCollectionManager.availableSongs;
+    _isLoopModeOn = _soundCollectionManager.isLoopModeOn;
     super.initState();
+  }
+
+  @override
+  void setState(fn) {
+    if(mounted) {
+      super.setState(fn);
+    }
   }
 
   Future<void> onSearchInputChanged() async {
     if (_searchMusicInputController.value.text == Constants.stringEmpty) {
       setState(() {
-        displayedFiles = widget.soundCollectionManager.availableSongs;
+        displayedFiles = _soundCollectionManager.availableSongs;
       });
     }
 
     List<MusicFile> filteredFiles = [];
-    for (var soundFile in widget.soundCollectionManager.availableSongs) {
+    for (var soundFile in _soundCollectionManager.availableSongs) {
       if (soundFile.name.toUpperCase().contains(_searchMusicInputController.value.text.toUpperCase())) {
         filteredFiles.add(soundFile);
       }
@@ -64,8 +74,145 @@ class _PlaylistView extends State<PlaylistView> {
   @override
   void dispose() {
     _searchMusicInputController.dispose();
-    _isPlayingSubscription.cancel();
     super.dispose();
+  }
+
+  Future<void> _showAddToPlaylistDialog(MusicFile musicFile) async {
+    final playlistManager = context.read<PlaylistManager>();
+    final playlists = await playlistManager.getPlaylists();
+    
+    if (playlists.isEmpty) {
+      _showErrorDialog('No playlists available. Create a playlist in Settings first.');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Add "${musicFile.name}" to playlist'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: playlists.length,
+              itemBuilder: (context, index) {
+                final playlist = playlists[index];
+                final playlistName = playlist['name'] as String;
+                
+                return ListTile(
+                  title: Text(playlistName),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _addSongToPlaylist(playlistName, musicFile.filePath);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _addSongToPlaylist(String playlistName, String songPath) async {
+    try {
+      final playlistManager = context.read<PlaylistManager>();
+      await playlistManager.addSongToPlaylistByName(playlistName, songPath);
+      _showSuccessDialog('Song added to playlist successfully!');
+    } catch (e) {
+      _showErrorDialog('Failed to add song to playlist: $e');
+    }
+  }
+
+  Future<void> _showRemoveFromPlaylistDialog(MusicFile musicFile) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Remove "${musicFile.name}" from playlist'),
+          content: const Text('Are you sure you want to remove this song from the current playlist?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _removeSongFromPlaylist(musicFile);
+              },
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _removeSongFromPlaylist(MusicFile musicFile) async {
+    if (context.read<PlaylistManager>().currentPlaylist == "All Files") {
+      _showErrorDialog('Cannot remove songs from "All Files" playlist.');
+      return;
+    }
+
+    try {
+      final playlistManager = context.read<PlaylistManager>();
+      await playlistManager.removeSongFromPlaylistByName(
+        context.read<PlaylistManager>().currentPlaylist, 
+        musicFile.filePath
+      );
+      
+      setState(() {
+        displayedFiles = _soundCollectionManager.availableSongs;
+      });
+      
+      _showSuccessDialog('Song removed from playlist successfully!');
+    } catch (e) {
+      _showErrorDialog('Failed to remove song from playlist: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Success'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Row createControlPanelWidget(BuildContext context) {
@@ -74,8 +221,8 @@ class _PlaylistView extends State<PlaylistView> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ElevatedButton(
-          onPressed: _isCurrentlyPlaying || widget.soundCollectionManager.currentSong != null ? () {
-            var indexCalc = widget.soundCollectionManager.availableSongs.indexWhere((song) => song == widget.soundCollectionManager.currentSong);
+          onPressed: _isCurrentlyPlaying || _soundCollectionManager.currentSong != null ? () {
+            var indexCalc = _soundCollectionManager.availableSongs.indexWhere((song) => song == _soundCollectionManager.currentSong);
             if(index != indexCalc) {
               index = indexCalc;
               var padding = MediaQuery.of(context).viewPadding;
@@ -100,22 +247,40 @@ class _PlaylistView extends State<PlaylistView> {
           child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.search),
         ),
         ElevatedButton(
-          onPressed: _isCurrentlyPlaying || widget.soundCollectionManager.currentSong != null ? () => widget.soundCollectionManager.resumeOrPauseSong() : null,
-          child: _isCurrentlyPlaying && widget.soundCollectionManager.currentSong != null ?
+          onPressed: _isCurrentlyPlaying || _soundCollectionManager.currentSong != null ? () => _soundCollectionManager.resumeOrPauseSong() : null,
+          child: _isCurrentlyPlaying && _soundCollectionManager.currentSong != null ?
             getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.pause) :
             getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.play_arrow)
         ),
         ElevatedButton(
           onPressed: () {
-            widget.soundCollectionManager.playRandomMusic();
+            _soundCollectionManager.playRandomMusic();
           },
           child: getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.shuffle),
         ),
+        if (context.read<PlaylistManager>().currentPlaylist != "All Files")
+          ElevatedButton(
+            onPressed: () {
+              _soundCollectionManager.setLoop();
+              setState(() {
+                _isLoopModeOn = _soundCollectionManager.isLoopModeOn;
+              });
+            },
+            child: getColoredIconWidget(
+              context, 
+              _isLoopModeOn 
+                ? Theme.of(context).colorScheme.primary 
+                : Theme.of(context).textTheme.displayLarge!.color!, 
+              Icons.repeat
+            ),
+          ),
       ],
     );
   }
 
   ListView createMusicListWidget(BuildContext context) {
+    displayedFiles = context.read<PlaylistManager>().currentPlaylistSongs;
+
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
@@ -129,10 +294,17 @@ class _PlaylistView extends State<PlaylistView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: displayedFiles[index] == widget.soundCollectionManager.currentSong ?
+          trailing: displayedFiles[index] == _soundCollectionManager.currentSong ?
             getDefaultIconWidget(context, Icons.music_note) : null,
           onTap: () => {
-            widget.soundCollectionManager.selectAndPlaySong(displayedFiles[index])
+            _soundCollectionManager.selectAndPlaySong(displayedFiles[index])
+          },
+          onLongPress: () {
+            if (context.read<PlaylistManager>().currentPlaylist == "All Files") {
+              _showAddToPlaylistDialog(displayedFiles[index]);
+            } else {
+              _showRemoveFromPlaylistDialog(displayedFiles[index]);
+            }
           },
         );
       },
@@ -141,34 +313,39 @@ class _PlaylistView extends State<PlaylistView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text(widget.title),
-      ),
-      drawer: context.watch<MainDrawer>(),
-      body: Column(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            height: 60,
-            child: createControlPanelWidget(context),
+    return ListenableBuilder(
+      listenable: context.read<PlaylistManager>(),
+      builder: (BuildContext ctx, Widget? child) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(ctx).colorScheme.primary,
+            title: ctx.read<PlaylistManager>().currentPlaylist == "All Files" ? const Text(Constants.appName) : Text(ctx.read<PlaylistManager>().currentPlaylist),
           ),
-          _isSearchBoxVisible ? Expanded(
-            child: createBaseInputbox(_searchMusicInputController, true)
-          ) as Widget : const SizedBox.shrink(),
-          Expanded(
-            flex: 10,
-            child: SingleChildScrollView(
-              controller: _musicListScrollControl,
-              child: 
-              displayedFiles.isNotEmpty ?
-                createMusicListWidget(context) :
-                const Text("Welcome to Strayker Music!\n\nNo sound files can be displayed. If you think it's error, check your searching criteria, filesystem permissions and app's storage settings.", softWrap: true, textAlign: TextAlign.center),
-            )
+          drawer: const MainDrawer(),
+          body: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: createControlPanelWidget(ctx),
+              ),
+              _isSearchBoxVisible ? Expanded(
+                child: createBaseInputbox(_searchMusicInputController, true)
+              ) as Widget : const SizedBox.shrink(),
+              Expanded(
+                flex: 10,
+                child: SingleChildScrollView(
+                  controller: _musicListScrollControl,
+                  child: 
+                  ctx.read<PlaylistManager>().currentPlaylistSongs.isNotEmpty ?
+                    createMusicListWidget(ctx) :
+                    const Text("Welcome to Strayker Music!\n\nNo sound files can be displayed. If you think it's error, check your searching criteria, filesystem permissions and app's storage settings.", softWrap: true, textAlign: TextAlign.center),
+                )
+              )
+            ],
           )
-        ],
-      )
+        );
+      }
     );
   }
 }
