@@ -23,7 +23,6 @@ final class SoundCollectionManager {
     _soundPlayer = player;
     availableSongs = songs;
     availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
-    _loadSettings();
   }
 
   Future<void> playRandomMusic() async {
@@ -69,18 +68,6 @@ final class SoundCollectionManager {
 
   Future<void> resumeOrPauseSong() async {
     await _soundPlayer.resumeOrPauseSong();
-  }
-
-  Future<void> _loadSettings() async {
-    final dbContext = DatabaseHelper();
-    final settings = await dbContext.getAllData(DatabaseConstants.settingsTableName);
-    for (final {"name": settingName, "value": settingValue} in settings) {
-      if (settingName == DatabaseConstants.loopModeTableValueName) {
-        _loopMode = settingValue == "true";
-        await _soundPlayer.setLoopMode(_loopMode);
-        break;
-      }
-    }
   }
 
   Future<void> setLoop() async {

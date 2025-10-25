@@ -23,7 +23,6 @@ Future<void> main() async {
   final DatabaseHelper dbHelper = DatabaseHelper();
   List<MusicFile> files = await filesReader.getMusicFiles();
 
-  // TODO: Add Redux container.
   runApp(
     MultiProvider(
       providers: [

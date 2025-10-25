@@ -38,8 +38,6 @@ final class DefaultAudioHandler extends BaseAudioHandler {
               break;
 
             case AudioInterruptionType.pause:
-              await _player.play();
-              break;
             case AudioInterruptionType.unknown:
               break;
           }

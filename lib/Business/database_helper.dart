@@ -39,20 +39,18 @@ final class DatabaseHelper {
         INSERT INTO settings VALUES (null, "playedSongsMaxAmount", 0)
       ''');
       db.execute('''
-        INSERT INTO settings VALUES (null, "loopMode", "true")
-      ''');
-      db.execute('''
         INSERT INTO storageLocations VALUES (null, "/storage/emulated/0/Music")
       ''');
-      db.execute('''
-        INSERT INTO playlists VALUES (null, "Playlist 1")
-      ''');
-      db.execute('''
-        INSERT INTO playlists VALUES (null, "Playlist 2")
-      ''');
-      db.execute('''
-        INSERT INTO playlists VALUES (null, "Playlist 3")
-      ''');
+      // Only for debugging.
+      // db.execute('''
+      //   INSERT INTO playlists VALUES (null, "Playlist 1")
+      // ''');
+      // db.execute('''
+      //   INSERT INTO playlists VALUES (null, "Playlist 2")
+      // ''');
+      // db.execute('''
+      //   INSERT INTO playlists VALUES (null, "Playlist 3")
+      // ''');
     });
   }
 

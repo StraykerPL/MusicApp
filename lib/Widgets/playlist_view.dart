@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:strayker_music/Business/playlist_manager.dart';
@@ -36,6 +37,10 @@ class _PlaylistView extends State<PlaylistView> {
   @override
   void initState() {
     _soundCollectionManager.getPlaybackStateSubscription.onData((value) {
+      if (value.processingState == AudioProcessingState.completed && context.read<PlaylistManager>().currentPlaylist != "All Files" && _isLoopModeOn) {
+        var index = _soundCollectionManager.availableSongs.indexOf(_soundCollectionManager.currentSong!);
+        _soundCollectionManager.selectAndPlaySong(_soundCollectionManager.availableSongs[index]);
+      }
       setState(() {
         _isCurrentlyPlaying = value.playing;
       });
@@ -45,11 +50,16 @@ class _PlaylistView extends State<PlaylistView> {
     super.initState();
   }
 
-  @override
-  void setState(fn) {
-    if(mounted) {
-      super.setState(fn);
+  List<MusicFile> _filterFiles(List<MusicFile> files) {
+    List<MusicFile> filteredFiles = [];
+
+    for (var soundFile in files) {
+      if (soundFile.name.toUpperCase().contains(_searchMusicInputController.value.text.toUpperCase())) {
+        filteredFiles.add(soundFile);
+      }
     }
+
+    return filteredFiles;
   }
 
   Future<void> onSearchInputChanged() async {
@@ -57,17 +67,12 @@ class _PlaylistView extends State<PlaylistView> {
       setState(() {
         displayedFiles = _soundCollectionManager.availableSongs;
       });
-    }
 
-    List<MusicFile> filteredFiles = [];
-    for (var soundFile in _soundCollectionManager.availableSongs) {
-      if (soundFile.name.toUpperCase().contains(_searchMusicInputController.value.text.toUpperCase())) {
-        filteredFiles.add(soundFile);
-      }
+      return;
     }
 
     setState(() {
-      displayedFiles = filteredFiles;
+      displayedFiles = _filterFiles(displayedFiles);
     });
   }
 
@@ -266,20 +271,32 @@ class _PlaylistView extends State<PlaylistView> {
                 _isLoopModeOn = _soundCollectionManager.isLoopModeOn;
               });
             },
-            child: getColoredIconWidget(
-              context, 
-              _isLoopModeOn 
-                ? Theme.of(context).colorScheme.primary 
-                : Theme.of(context).textTheme.displayLarge!.color!, 
-              Icons.repeat
-            ),
+            child: _isLoopModeOn ? getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.repeat) : getColoredIconWidget(context, Theme.of(context).textTheme.displayLarge!.color!, Icons.double_arrow),
           ),
       ],
     );
   }
 
   ListView createMusicListWidget(BuildContext context) {
-    displayedFiles = context.read<PlaylistManager>().currentPlaylistSongs;
+    // if (context.read<PlaylistManager>().currentPlaylistSongs.isEmpty == false) {
+    //   _soundCollectionManager.availableSongs = context.read<PlaylistManager>().currentPlaylistSongs;
+    // }
+    // else if (context.read<PlaylistManager>().currentPlaylistSongs.isEmpty == true && context.read<PlaylistManager>().currentPlaylist == "All Files") {
+    //   _soundCollectionManager.availableSongs = context.read<List<MusicFile>>();
+    // }
+    // else if (context.read<PlaylistManager>().currentPlaylistSongs.isEmpty == false && context.read<PlaylistManager>().currentPlaylist != "All Files") {
+    //   _soundCollectionManager.availableSongs = context.read<PlaylistManager>().currentPlaylistSongs;
+    // }
+    // else {
+    //   _soundCollectionManager.availableSongs = [];
+    // }
+    if (context.read<PlaylistManager>().currentPlaylist == "All Files") {
+      _soundCollectionManager.availableSongs = context.read<List<MusicFile>>();
+    }
+    else {
+      _soundCollectionManager.availableSongs = context.read<PlaylistManager>().currentPlaylistSongs;
+    }
+    displayedFiles = _filterFiles(_soundCollectionManager.availableSongs);
 
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
@@ -337,7 +354,7 @@ class _PlaylistView extends State<PlaylistView> {
                 child: SingleChildScrollView(
                   controller: _musicListScrollControl,
                   child: 
-                  ctx.read<PlaylistManager>().currentPlaylistSongs.isNotEmpty ?
+                  context.read<PlaylistManager>().currentPlaylistSongs.isNotEmpty || displayedFiles.isNotEmpty || _soundCollectionManager.availableSongs.isNotEmpty ?
                     createMusicListWidget(ctx) :
                     const Text("Welcome to Strayker Music!\n\nNo sound files can be displayed. If you think it's error, check your searching criteria, filesystem permissions and app's storage settings.", softWrap: true, textAlign: TextAlign.center),
                 )

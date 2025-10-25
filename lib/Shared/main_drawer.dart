@@ -89,9 +89,10 @@ class _MainDrawer extends State<MainDrawer> {
                 return ListTile(
                   title: Text(_playlists[index]),
                   onTap: () async {
-                    await _playlistManager.switchToPlaylist(_playlists[index]);
-                    // ignore: use_build_context_synchronously
-                    Navigator.of(context).pop();
+                    if (context.mounted) {
+                      await _playlistManager.switchToPlaylist(_playlists[index]);
+                      Navigator.of(context).pop();
+                    }
                   },
                 );
               }

@@ -21,7 +21,6 @@ class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _newPlaylistNameController = TextEditingController();
 
   int _playedSongsMaxAmount = 0;
-  bool _loopMode = true;
   List<String> _soundStorageLocations = [];
   String? _currentlySelectedStoragePath;
   List<Map<String, dynamic>> _playlists = [];
@@ -33,11 +32,6 @@ class _SettingsViewState extends State<SettingsView> {
       DatabaseConstants.settingsTableName,
       DatabaseConstants.playedSongsMaxAmountTableValueName,
       {"value": _playedSongsMaxAmount});
-    
-    await dbContext.updateDataByName(
-      DatabaseConstants.settingsTableName,
-      DatabaseConstants.loopModeTableValueName,
-      {"value": _loopMode ? "true" : "false"});
     
     List<Map<String, dynamic>> sumUpData = [];
     for (var storagePath in _soundStorageLocations) {
@@ -61,9 +55,6 @@ class _SettingsViewState extends State<SettingsView> {
           selection: TextSelection.collapsed(offset: _playedSongsMaxAmount.toString().length),
         );
       }
-      if (row["name"] == DatabaseConstants.loopModeTableValueName) {
-        _loopMode = row["value"] == "true";
-      }
     }
 
     var storageLocationsRawData = await dbContext.getAllData(DatabaseConstants.storagePathsTableName);
@@ -80,7 +71,6 @@ class _SettingsViewState extends State<SettingsView> {
 
   void setDefualtValues() {
     _playedSongsMaxAmount = DatabaseConstants.playedSongsMaxAmountDefault;
-    _loopMode = DatabaseConstants.loopModeDefault;
     _soundStorageLocations = DatabaseConstants.soundStorageLocationsDefault;
 
     saveSettings();
@@ -228,8 +218,8 @@ class _SettingsViewState extends State<SettingsView> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          child: Column(children: [
             const Text("Amount of repetitive songs prevention queue\n(zero means this feature is disabled):", textAlign: TextAlign.center,),
             SizedBox(
               width: 50,
@@ -242,21 +232,6 @@ class _SettingsViewState extends State<SettingsView> {
                 keyboardType: TextInputType.number
                 // TODO: Add validation to not allow input of number surpassing max amount of available sound files.
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Loop playlist (replay in circle):"),
-                Switch(
-                  value: _loopMode,
-                  onChanged: (value) {
-                    setState(() {
-                      _loopMode = value;
-                    });
-                  },
-                ),
-              ],
             ),
             const Text("Storage paths to look for sound files:"),
             SizedBox(
@@ -374,7 +349,7 @@ class _SettingsViewState extends State<SettingsView> {
                 )
               ],
             )
-          ]
+          ])
         ),
       )
     );
