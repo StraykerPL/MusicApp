@@ -9,24 +9,17 @@ import 'package:strayker_music/Models/music_file.dart';
 
 final class SoundCollectionManager {
   late final SoundPlayer _soundPlayer;
-  List<MusicFile> availableSongs = [];
-  List<MusicFile> playedSongs = [];
+  final List<MusicFile> _playedSongs = [];
   int _playedSongsMaxAmount = 0;
-  bool _loopMode = true;
-  MusicFile? _currentSong;
 
-  MusicFile? get currentSong => _currentSong;
-  bool get isLoopModeOn => _loopMode;
   StreamSubscription<PlaybackState> get getPlaybackStateSubscription => _soundPlayer.getPlaybackStateSubscription();
 
-  SoundCollectionManager({required SoundPlayer player, required List<MusicFile> songs}) {
+  SoundCollectionManager({required SoundPlayer player}) {
     _soundPlayer = player;
-    availableSongs = songs;
-    availableSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
   }
 
-  Future<void> playRandomMusic() async {
-    MusicFile randomMusicFile = _getRandomMusicFile();
+  Future<MusicFile> playRandomMusic(List<MusicFile> availableSongs) async {
+    MusicFile randomMusicFile = _getRandomMusicFile(availableSongs);
     final dbContext = DatabaseHelper();
     final settings = await dbContext.getAllData(DatabaseConstants.settingsTableName);
     for (final {"name": settingName, "value": settingValue} in settings) {
@@ -38,49 +31,45 @@ final class SoundCollectionManager {
     }
 
     if (_playedSongsMaxAmount == 0) {
-      _currentSong = randomMusicFile;
-      _soundPlayer.playNewSong(_currentSong);
+      await _soundPlayer.playNewSong(randomMusicFile);
 
-      return;
-    }
-
-    while (playedSongs.contains(randomMusicFile)) {
-      randomMusicFile = availableSongs[Random().nextInt(availableSongs.length)];
+      return randomMusicFile;
     }
 
-    if(playedSongs.length < _playedSongsMaxAmount) {
-      playedSongs.add(randomMusicFile);
-      _currentSong = randomMusicFile;
-      _soundPlayer.playNewSong(_currentSong);
+    while (_playedSongs.contains(randomMusicFile)) {
+      randomMusicFile = _getRandomMusicFile(availableSongs);
     }
-    else if(playedSongs.length >= _playedSongsMaxAmount) {
-      playedSongs.removeAt(0);
-      playedSongs.add(randomMusicFile);
-      _currentSong = randomMusicFile;
-      _soundPlayer.playNewSong(_currentSong);
+
+    if(_playedSongs.length < _playedSongsMaxAmount) {
+      _playedSongs.add(randomMusicFile);
+      await _soundPlayer.playNewSong(randomMusicFile);
+
+      return randomMusicFile;
     }
+    else if(_playedSongs.length >= _playedSongsMaxAmount) {
+      _playedSongs.removeAt(0);
+      _playedSongs.add(randomMusicFile);
+      await _soundPlayer.playNewSong(randomMusicFile);
+
+      return randomMusicFile;
+    }
+
+    return randomMusicFile;
   }
 
-  void selectAndPlaySong(MusicFile song) {
-    _currentSong = availableSongs.singleWhere((songFile) => songFile == song);
-    _soundPlayer.playNewSong(_currentSong);
+  Future<void> selectAndPlaySong(MusicFile song) async {
+    await _soundPlayer.playNewSong(song);
   }
 
   Future<void> resumeOrPauseSong() async {
     await _soundPlayer.resumeOrPauseSong();
   }
 
-  Future<void> setLoop() async {
-    _loopMode = !_loopMode;
-    await _soundPlayer.setLoopMode(_loopMode);
-  }
-
   Future<void> setLoopMode(bool enabled) async {
-    _loopMode = enabled;
-    await _soundPlayer.setLoopMode(_loopMode);
+    await _soundPlayer.setLoopMode(enabled);
   }
 
-  MusicFile _getRandomMusicFile() {
+  MusicFile _getRandomMusicFile(List<MusicFile> availableSongs) {
     return availableSongs[Random().nextInt(availableSongs.length)];
   }
 }

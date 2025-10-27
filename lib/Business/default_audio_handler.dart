@@ -13,7 +13,6 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   bool get isLoopModeOn => _player.loopMode == LoopMode.all;
 
   DefaultAudioHandler() {
-    _player.setLoopMode(LoopMode.all);
     _player.playbackEventStream.map(transformEvent).pipe(playbackState);
     AudioSession.instance.then((session) {
       session.configure(const AudioSessionConfiguration.music());
@@ -84,10 +83,14 @@ final class DefaultAudioHandler extends BaseAudioHandler {
 
   Future<void> playNew(MediaItem item, String path) async {
     if(await _session.setActive(true)) {
-      mediaItem.add(item);
-      await _player.setAudioSource(
-        AudioSource.file(path, tag: item)
-      );
+      try {
+        mediaItem.add(item);
+        await _player.setAudioSource(
+          AudioSource.file(path, tag: item)
+        );
+      } on PlayerInterruptedException catch (_) {
+        
+      }
       await _player.play();
     }
   }
@@ -102,16 +105,7 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> setLoopMode(bool enabled) async {
-    await _player.setLoopMode(enabled ? LoopMode.all : LoopMode.off);
-  }
-
-  Future<void> setLoop() async {
-    if (_player.loopMode == LoopMode.all) {
-      await _player.setLoopMode(LoopMode.off);
-    }
-    else {
-      _player.setLoopMode(LoopMode.all);
-    }
+    await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
   }
 
   Future<void> dispose() async {

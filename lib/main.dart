@@ -30,7 +30,7 @@ Future<void> main() async {
         Provider<SoundPlayer>(create: (_) => SoundPlayer(handler: audioHandler)),
         Provider<DatabaseHelper>.value(value: dbHelper),
         ListenableProvider(create: (ctx) => PlaylistManager(databaseHelper: ctx.read<DatabaseHelper>(), allSongs: ctx.read<List<MusicFile>>())),
-        Provider<SoundCollectionManager>(create: (ctx) => SoundCollectionManager(player: ctx.read<SoundPlayer>(), songs: ctx.read<List<MusicFile>>())),
+        Provider<SoundCollectionManager>(create: (ctx) => SoundCollectionManager(player: ctx.read<SoundPlayer>())),
       ],
       child: const MyApp(),
     ),
@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.dark,
-      home: const PlaylistView(title: Constants.appName),
+      home: const PlaylistView(),
     );
   }
 }

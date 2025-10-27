@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 final class DatabaseHelper {
@@ -41,16 +42,18 @@ final class DatabaseHelper {
       db.execute('''
         INSERT INTO storageLocations VALUES (null, "/storage/emulated/0/Music")
       ''');
-      // Only for debugging.
-      // db.execute('''
-      //   INSERT INTO playlists VALUES (null, "Playlist 1")
-      // ''');
-      // db.execute('''
-      //   INSERT INTO playlists VALUES (null, "Playlist 2")
-      // ''');
-      // db.execute('''
-      //   INSERT INTO playlists VALUES (null, "Playlist 3")
-      // ''');
+
+      if (kDebugMode) {
+        db.execute('''
+          INSERT INTO playlists VALUES (null, "Playlist 1")
+        ''');
+        db.execute('''
+          INSERT INTO playlists VALUES (null, "Playlist 2")
+        ''');
+        db.execute('''
+          INSERT INTO playlists VALUES (null, "Playlist 3")
+        ''');
+      }
     });
   }
 

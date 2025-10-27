@@ -6,12 +6,10 @@ final class PlaylistManager with ChangeNotifier {
   final DatabaseHelper _databaseHelper;
   final List<MusicFile> _allSongs;
   
-  String _previousPlaylist = "";
   String _currentPlaylist = "All Files";
   List<String> _availablePlaylists = ["All Files"];
   List<MusicFile> _currentPlaylistSongs = [];
 
-  String get previousPlaylist => _previousPlaylist;
   String get currentPlaylist => _currentPlaylist;
   List<String> get availablePlaylists => _availablePlaylists;
   List<MusicFile> get currentPlaylistSongs => _currentPlaylistSongs;
@@ -21,6 +19,7 @@ final class PlaylistManager with ChangeNotifier {
     required List<MusicFile> allSongs,
   }) : _databaseHelper = databaseHelper,
        _allSongs = allSongs {
+    _allSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
     _currentPlaylistSongs = List.from(_allSongs);
   }
 
@@ -35,6 +34,7 @@ final class PlaylistManager with ChangeNotifier {
   Future<int> createPlaylist(String playlistName) async {
     final playlistId = await _databaseHelper.createPlaylist(playlistName);
     await loadAvailablePlaylists();
+    notifyListeners();
     return playlistId;
   }
 
@@ -48,6 +48,8 @@ final class PlaylistManager with ChangeNotifier {
 
   Future<void> deletePlaylist(int playlistId) async {
     await _databaseHelper.deletePlaylist(playlistId);
+    await loadAvailablePlaylists();
+    notifyListeners();
   }
 
   Future<Map<String, dynamic>?> getPlaylistByName(String playlistName) async {
@@ -91,7 +93,6 @@ final class PlaylistManager with ChangeNotifier {
   }
 
   Future<void> switchToPlaylist(String playlistName) async {
-    _previousPlaylist = _currentPlaylist;
     _currentPlaylist = playlistName;
     _currentPlaylistSongs = await getPlaylistSongsByName(_currentPlaylist, _allSongs);
     notifyListeners();
@@ -161,5 +162,15 @@ final class PlaylistManager with ChangeNotifier {
     }
     
     return containingPlaylists;
+  }
+
+  MusicFile getNextSongFromPlaylist(MusicFile song) {
+    var index = currentPlaylistSongs.indexOf(song);
+
+    if (++index == currentPlaylistSongs.length) {
+      return currentPlaylistSongs[0];
+    }
+
+    return currentPlaylistSongs[index++];
   }
 }

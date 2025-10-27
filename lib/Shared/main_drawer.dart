@@ -30,6 +30,11 @@ class _MainDrawer extends State<MainDrawer> {
         _playlists = _playlistManager.availablePlaylists;
       })
     });
+    _playlistManager.addListener(() {
+      setState(() {
+        _playlists = _playlistManager.availablePlaylists;
+      });
+    });
     super.initState();
   }
 
@@ -82,21 +87,26 @@ class _MainDrawer extends State<MainDrawer> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.only(right: 16.0),
-              itemCount: _playlists.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(_playlists[index]),
-                  onTap: () async {
-                    if (context.mounted) {
-                      await _playlistManager.switchToPlaylist(_playlists[index]);
-                      Navigator.of(context).pop();
-                    }
-                  },
+            child: ListenableBuilder(
+              listenable: context.read<PlaylistManager>(),
+              builder: (BuildContext ctx, Widget? child) {
+                return ListView.builder(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  itemCount: _playlists.length,
+                  itemBuilder: (ctx, index) {
+                    return ListTile(
+                      title: Text(_playlists[index]),
+                      onTap: () async {
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                          await _playlistManager.switchToPlaylist(_playlists[index]);
+                        }
+                      },
+                    );
+                  }
                 );
-              }
-            ),
+              },
+            )
           ),
           ListTile(
             title: const Text("Settings"),
