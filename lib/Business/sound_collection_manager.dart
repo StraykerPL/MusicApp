@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Business/database_helper.dart';
+import 'package:strayker_music/Business/default_audio_handler.dart';
 import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
@@ -75,6 +76,16 @@ final class SoundCollectionManager {
 
   Future<void> setLoopMode(bool enabled) async {
     await _soundPlayer.setLoopMode(enabled);
+  }
+
+  void setNotificationSkipHandlers({
+    NotificationSkipHandler? skipToNext,
+    NotificationSkipHandler? skipToPrevious,
+  }) {
+    _soundPlayer.setNotificationSkipHandlers(
+      skipToNext: skipToNext,
+      skipToPrevious: skipToPrevious,
+    );
   }
 
   MusicFile _getRandomMusicFile(List<MusicFile> availableSongs) {

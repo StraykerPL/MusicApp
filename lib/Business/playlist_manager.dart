@@ -181,4 +181,14 @@ final class PlaylistManager with ChangeNotifier {
 
     return currentPlaylistSongs[index++];
   }
+
+  MusicFile getPreviousSongFromPlaylist(MusicFile song) {
+    var index = currentPlaylistSongs.indexOf(song);
+
+    if (--index < 0) {
+      return currentPlaylistSongs[currentPlaylistSongs.length - 1];
+    }
+
+    return currentPlaylistSongs[index];
+  }
 }

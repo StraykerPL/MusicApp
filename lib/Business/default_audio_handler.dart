@@ -5,10 +5,13 @@ import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 
 typedef AudioSessionProvider = Future<AudioSession> Function();
+typedef NotificationSkipHandler = Future<void> Function();
 
-final class DefaultAudioHandler extends BaseAudioHandler {
+final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
   final AudioPlayer _player;
   final AudioSessionProvider _sessionProvider;
+  NotificationSkipHandler? _skipToNextHandler;
+  NotificationSkipHandler? _skipToPreviousHandler;
   late AudioSession _session;
   late StreamSubscription<void> _noisyCheckStream;
   late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
@@ -67,6 +70,8 @@ final class DefaultAudioHandler extends BaseAudioHandler {
       controls: [
         _player.playing ? MediaControl.pause : MediaControl.play,
         MediaControl.stop,
+        MediaControl.skipToPrevious,
+        MediaControl.skipToNext,
       ],
       processingState: const {
         ProcessingState.idle: AudioProcessingState.idle,
@@ -89,6 +94,25 @@ final class DefaultAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async => await _player.stop();
+
+  @override
+  Future<void> skipToNext() async {
+    await _skipToNextHandler?.call();
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    await _skipToPreviousHandler?.call();
+  }
+  // End of widget handling code.
+
+  void setNotificationSkipHandlers({
+    NotificationSkipHandler? skipToNext,
+    NotificationSkipHandler? skipToPrevious,
+  }) {
+    _skipToNextHandler = skipToNext;
+    _skipToPreviousHandler = skipToPrevious;
+  }
 
   Future<void> playNew(MediaItem item, String path) async {
     if (await _session.setActive(true)) {

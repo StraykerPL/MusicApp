@@ -29,7 +29,12 @@ void main() {
 
       expect(state.playing, isFalse);
       expect(state.processingState, AudioProcessingState.idle);
-      expect(state.controls, [MediaControl.play, MediaControl.stop]);
+      expect(state.controls, [
+        MediaControl.play,
+        MediaControl.stop,
+        MediaControl.skipToPrevious,
+        MediaControl.skipToNext,
+      ]);
     });
 
     test('play delegates to audio player', () async {
@@ -57,6 +62,34 @@ void main() {
       await harness.handler.stop();
 
       verify(() => harness.player.stop()).called(1);
+    });
+
+    test('skipToNext delegates to notification skip handler', () async {
+      final harness = await HandlerHarness.create();
+      addTearDown(harness.close);
+      var calls = 0;
+      harness.handler.setNotificationSkipHandlers(
+        skipToNext: () async => calls++,
+      );
+
+      await harness.handler.skipToNext();
+
+      expect(calls, 1);
+      verifyNever(() => harness.player.play());
+    });
+
+    test('skipToPrevious delegates to notification skip handler', () async {
+      final harness = await HandlerHarness.create();
+      addTearDown(harness.close);
+      var calls = 0;
+      harness.handler.setNotificationSkipHandlers(
+        skipToPrevious: () async => calls++,
+      );
+
+      await harness.handler.skipToPrevious();
+
+      expect(calls, 1);
+      verifyNever(() => harness.player.play());
     });
 
     test(

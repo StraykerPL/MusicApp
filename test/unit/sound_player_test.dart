@@ -87,5 +87,21 @@ void main() {
       verify(() => handlerHarness.player.setLoopMode(LoopMode.one)).called(1);
       verify(() => handlerHarness.player.setLoopMode(LoopMode.off)).called(1);
     });
+
+    test('setNotificationSkipHandlers delegates notification skip callbacks',
+        () async {
+      var nextCalls = 0;
+      var previousCalls = 0;
+
+      soundPlayer.setNotificationSkipHandlers(
+        skipToNext: () async => nextCalls++,
+        skipToPrevious: () async => previousCalls++,
+      );
+      await handlerHarness.handler.skipToNext();
+      await handlerHarness.handler.skipToPrevious();
+
+      expect(nextCalls, 1);
+      expect(previousCalls, 1);
+    });
   });
 }

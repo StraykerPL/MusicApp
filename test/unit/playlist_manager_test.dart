@@ -244,5 +244,22 @@ void main() {
       expect(nextSong, beta);
       expect(wrappedSong, alpha);
     });
+
+    test('getPreviousSongFromPlaylist returns previous song and wraps at start',
+        () {
+      final alpha = createSong('/music/alpha.mp3');
+      final beta = createSong('/music/beta.mp3');
+      final gamma = createSong('/music/gamma.mp3');
+      final manager = PlaylistManager(
+        databaseHelper: databaseHelper,
+        allSongs: [beta, gamma, alpha],
+      );
+
+      final previousSong = manager.getPreviousSongFromPlaylist(gamma);
+      final wrappedSong = manager.getPreviousSongFromPlaylist(alpha);
+
+      expect(previousSong, beta);
+      expect(wrappedSong, gamma);
+    });
   });
 }

@@ -28,4 +28,14 @@ class SoundPlayer {
   Future<void> setLoopMode(bool enabled) async {
     await _handler.setLoopMode(enabled);
   }
+
+  void setNotificationSkipHandlers({
+    NotificationSkipHandler? skipToNext,
+    NotificationSkipHandler? skipToPrevious,
+  }) {
+    _handler.setNotificationSkipHandlers(
+      skipToNext: skipToNext,
+      skipToPrevious: skipToPrevious,
+    );
+  }
 }

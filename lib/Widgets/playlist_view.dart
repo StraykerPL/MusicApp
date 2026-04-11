@@ -57,6 +57,10 @@ class _PlaylistView extends State<PlaylistView> {
       });
     });
     _displayedFiles = _playlistManager.currentPlaylistSongs;
+    _soundCollectionManager.setNotificationSkipHandlers(
+      skipToNext: _playNextSongFromNotification,
+      skipToPrevious: _playPreviousSongFromNotification,
+    );
     _playlistManager.addListener(() async {
       if (_playlistManager.currentPlaylist == "All Files") {
         await _soundCollectionManager.setLoopMode(true);
@@ -97,9 +101,34 @@ class _PlaylistView extends State<PlaylistView> {
 
   @override
   void dispose() {
+    _soundCollectionManager.setNotificationSkipHandlers();
     _searchMusicInputController.dispose();
     _playlistManager.dispose();
     super.dispose();
+  }
+
+  Future<void> _playNextSongFromNotification() async {
+    await _playSongFromNotification(_playlistManager.getNextSongFromPlaylist(_currentSong!));
+  }
+
+  Future<void> _playPreviousSongFromNotification() async {
+    await _playSongFromNotification(_playlistManager.getPreviousSongFromPlaylist(_currentSong!));
+  }
+
+  Future<void> _playSongFromNotification(
+    MusicFile song,
+  ) async {
+    if (!mounted ||
+        _currentSong == null ||
+        _playlistManager.currentPlaylistSongs.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _currentSong = song;
+    });
+
+    await _soundCollectionManager.selectAndPlaySong(song);
   }
 
   Future<void> _showAddToPlaylistDialog(MusicFile musicFile) async {
