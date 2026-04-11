@@ -4,21 +4,28 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 
+typedef AudioSessionProvider = Future<AudioSession> Function();
+
 final class DefaultAudioHandler extends BaseAudioHandler {
-  final _player = AudioPlayer();
+  final AudioPlayer _player;
+  final AudioSessionProvider _sessionProvider;
   late AudioSession _session;
   late StreamSubscription<void> _noisyCheckStream;
   late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
   late StreamSubscription<AudioDevicesChangedEvent> _deviceChangeEventStream;
   bool get isLoopModeOn => _player.loopMode == LoopMode.all;
 
-  DefaultAudioHandler() {
+  DefaultAudioHandler({
+    AudioPlayer? player,
+    AudioSessionProvider? sessionProvider,
+  })  : _player = player ?? AudioPlayer(),
+        _sessionProvider = sessionProvider ?? (() => AudioSession.instance) {
     _player.playbackEventStream.map(transformEvent).pipe(playbackState);
-    AudioSession.instance.then((session) {
+    _sessionProvider().then((session) {
       session.configure(const AudioSessionConfiguration.music());
       _session = session;
 
-       _interruptEventStream = _session.interruptionEventStream.listen((event) async {
+      _interruptEventStream = _session.interruptionEventStream.listen((event) async {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:

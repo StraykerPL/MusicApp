@@ -30,11 +30,6 @@ class _MainDrawer extends State<MainDrawer> {
         _playlists = _playlistManager.availablePlaylists;
       })
     });
-    _playlistManager.addListener(() {
-      setState(() {
-        _playlists = _playlistManager.availablePlaylists;
-      });
-    });
     super.initState();
   }
 

@@ -9,19 +9,26 @@ import 'package:strayker_music/Models/music_file.dart';
 
 final class SoundCollectionManager {
   late final SoundPlayer _soundPlayer;
+  late final DatabaseHelper _databaseHelper;
+  late final Random _random;
   final List<MusicFile> _playedSongs = [];
   int _playedSongsMaxAmount = 0;
 
   StreamSubscription<PlaybackState> get getPlaybackStateSubscription => _soundPlayer.getPlaybackStateSubscription();
 
-  SoundCollectionManager({required SoundPlayer player}) {
+  SoundCollectionManager({
+    required SoundPlayer player,
+    DatabaseHelper? databaseHelper,
+    Random? random,
+  }) {
     _soundPlayer = player;
+    _databaseHelper = databaseHelper ?? DatabaseHelper();
+    _random = random ?? Random();
   }
 
   Future<MusicFile> playRandomMusic(List<MusicFile> availableSongs) async {
     MusicFile randomMusicFile = _getRandomMusicFile(availableSongs);
-    final dbContext = DatabaseHelper();
-    final settings = await dbContext.getAllData(DatabaseConstants.settingsTableName);
+    final settings = await _databaseHelper.getAllData(DatabaseConstants.settingsTableName);
     for (final {"name": settingName, "value": settingValue} in settings) {
       if (settingName == DatabaseConstants.playedSongsMaxAmountTableValueName) {
         _playedSongsMaxAmount = int.parse(settingValue); 
@@ -30,7 +37,7 @@ final class SoundCollectionManager {
       }
     }
 
-    if (_playedSongsMaxAmount == 0) {
+    if (_playedSongsMaxAmount == 0 || availableSongs.length == 1) {
       await _soundPlayer.playNewSong(randomMusicFile);
 
       return randomMusicFile;
@@ -70,6 +77,6 @@ final class SoundCollectionManager {
   }
 
   MusicFile _getRandomMusicFile(List<MusicFile> availableSongs) {
-    return availableSongs[Random().nextInt(availableSongs.length)];
+    return availableSongs[_random.nextInt(availableSongs.length)];
   }
 }

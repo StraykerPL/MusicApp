@@ -4,7 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Business/default_audio_handler.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
-final class SoundPlayer {
+class SoundPlayer {
   late final DefaultAudioHandler _handler;
 
   SoundPlayer({required DefaultAudioHandler handler}) {

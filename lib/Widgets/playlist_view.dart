@@ -22,6 +22,7 @@ class PlaylistView extends StatefulWidget {
 class _PlaylistView extends State<PlaylistView> {
   final ScrollController _musicListScrollControl = ScrollController();
   final TextEditingController _searchMusicInputController = TextEditingController();
+  final MainDrawer _drawer = const MainDrawer();
 
   bool _isCurrentlyPlaying = false;
   bool _isSearchBoxVisible = false;
@@ -338,7 +339,7 @@ class _PlaylistView extends State<PlaylistView> {
             backgroundColor: Theme.of(ctx).colorScheme.primary,
             title: ctx.read<PlaylistManager>().currentPlaylist == "All Files" ? const Text(Constants.appName) : Text(ctx.read<PlaylistManager>().currentPlaylist),
           ),
-          drawer: const MainDrawer(),
+          drawer: _drawer,
           body: Column(
             children: [
               SizedBox(
