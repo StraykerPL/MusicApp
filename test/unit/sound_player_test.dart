@@ -28,7 +28,8 @@ void main() {
       await handlerHarness.close();
     });
 
-    test('getPlaybackStateSubscription returns a playback state subscription', () {
+    test('getPlaybackStateSubscription returns a playback state subscription',
+        () {
       final subscription = soundPlayer.getPlaybackStateSubscription();
 
       expect(subscription, isA<StreamSubscription<PlaybackState>>());
@@ -55,7 +56,8 @@ void main() {
       expect(handlerHarness.handler.mediaItem.value, isNull);
     });
 
-    test('resumeOrPauseSong delegates pause when player is already playing', () async {
+    test('resumeOrPauseSong delegates pause when player is already playing',
+        () async {
       await handlerHarness.close();
       handlerHarness = await HandlerHarness.create(isPlaying: true);
       soundPlayer = SoundPlayer(handler: handlerHarness.handler);
@@ -66,7 +68,8 @@ void main() {
       verifyNever(() => handlerHarness.player.play());
     });
 
-    test('resumeOrPauseSong delegates play when player is not playing', () async {
+    test('resumeOrPauseSong delegates play when player is not playing',
+        () async {
       await handlerHarness.close();
       handlerHarness = await HandlerHarness.create(isPlaying: false);
       soundPlayer = SoundPlayer(handler: handlerHarness.handler);

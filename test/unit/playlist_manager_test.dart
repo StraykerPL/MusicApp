@@ -12,7 +12,8 @@ void main() {
 
     setUp(() async {
       fakeDatabase = await FakeDatabase.seeded();
-      databaseHelper = DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
+      databaseHelper =
+          DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
     });
 
     tearDown(() async {
@@ -37,7 +38,8 @@ void main() {
       );
     });
 
-    test('createPlaylist returns id, reloads playlists, and notifies listeners', () async {
+    test('createPlaylist returns id, reloads playlists, and notifies listeners',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [createSong('/music/alpha.mp3')],
@@ -52,7 +54,8 @@ void main() {
       expect(notifications, 1);
     });
 
-    test('getPlaylistByName returns matching playlist and null when missing', () async {
+    test('getPlaylistByName returns matching playlist and null when missing',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [createSong('/music/alpha.mp3')],
@@ -67,7 +70,9 @@ void main() {
       expect(missing, isNull);
     });
 
-    test('switchToPlaylist updates selected playlist, songs, and notifies listeners', () async {
+    test(
+        'switchToPlaylist updates selected playlist, songs, and notifies listeners',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [
@@ -92,7 +97,9 @@ void main() {
       expect(notifications, 1);
     });
 
-    test('getPlaylistSongsByName returns all songs for All Files and missing playlists', () async {
+    test(
+        'getPlaylistSongsByName returns all songs for All Files and missing playlists',
+        () async {
       final songs = [
         createSong('/music/alpha.mp3'),
         createSong('/music/beta.mp3'),
@@ -102,14 +109,18 @@ void main() {
         allSongs: songs,
       );
 
-      final allFilesSongs = await manager.getPlaylistSongsByName('All Files', songs);
-      final missingPlaylistSongs = await manager.getPlaylistSongsByName('Missing', songs);
+      final allFilesSongs =
+          await manager.getPlaylistSongsByName('All Files', songs);
+      final missingPlaylistSongs =
+          await manager.getPlaylistSongsByName('Missing', songs);
 
       expect(allFilesSongs, songs);
       expect(missingPlaylistSongs, songs);
     });
 
-    test('addSongToPlaylistByName adds song and refreshes current playlist when selected', () async {
+    test(
+        'addSongToPlaylistByName adds song and refreshes current playlist when selected',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [
@@ -131,7 +142,9 @@ void main() {
       expect(notifications, 1);
     });
 
-    test('removeSongFromPlaylistByName removes song and refreshes current playlist when selected', () async {
+    test(
+        'removeSongFromPlaylistByName removes song and refreshes current playlist when selected',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [
@@ -152,7 +165,9 @@ void main() {
       );
     });
 
-    test('deletePlaylistByName deletes playlist, reloads names, and switches back to All Files', () async {
+    test(
+        'deletePlaylistByName deletes playlist, reloads names, and switches back to All Files',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [
@@ -174,7 +189,9 @@ void main() {
       );
     });
 
-    test('isSongInPlaylist handles All Files, missing playlists, and stored songs', () async {
+    test(
+        'isSongInPlaylist handles All Files, missing playlists, and stored songs',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [createSong('/music/alpha.mp3')],
@@ -182,16 +199,21 @@ void main() {
       final playlistId = await databaseHelper.createPlaylist('Focus');
       await databaseHelper.addSongToPlaylist(playlistId, '/music/beta.mp3');
 
-      final inAllFiles = await manager.isSongInPlaylist('All Files', '/music/alpha.mp3');
-      final inFocus = await manager.isSongInPlaylist('Focus', '/music/beta.mp3');
-      final missing = await manager.isSongInPlaylist('Missing', '/music/beta.mp3');
+      final inAllFiles =
+          await manager.isSongInPlaylist('All Files', '/music/alpha.mp3');
+      final inFocus =
+          await manager.isSongInPlaylist('Focus', '/music/beta.mp3');
+      final missing =
+          await manager.isSongInPlaylist('Missing', '/music/beta.mp3');
 
       expect(inAllFiles, isTrue);
       expect(inFocus, isTrue);
       expect(missing, isFalse);
     });
 
-    test('getPlaylistsContainingSong returns only playlists that contain the song', () async {
+    test(
+        'getPlaylistsContainingSong returns only playlists that contain the song',
+        () async {
       final manager = PlaylistManager(
         databaseHelper: databaseHelper,
         allSongs: [createSong('/music/alpha.mp3')],
@@ -201,7 +223,8 @@ void main() {
       await databaseHelper.addSongToPlaylist(roadTripId, '/music/alpha.mp3');
       await databaseHelper.addSongToPlaylist(focusId, '/music/beta.mp3');
 
-      final result = await manager.getPlaylistsContainingSong('/music/alpha.mp3');
+      final result =
+          await manager.getPlaylistsContainingSong('/music/alpha.mp3');
 
       expect(result, ['Road Trip']);
     });

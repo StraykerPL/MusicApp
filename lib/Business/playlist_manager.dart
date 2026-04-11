@@ -5,7 +5,7 @@ import 'package:strayker_music/Models/music_file.dart';
 final class PlaylistManager with ChangeNotifier {
   final DatabaseHelper _databaseHelper;
   final List<MusicFile> _allSongs;
-  
+
   String _currentPlaylist = "All Files";
   List<String> _availablePlaylists = ["All Files"];
   List<MusicFile> _currentPlaylistSongs = [];
@@ -17,9 +17,10 @@ final class PlaylistManager with ChangeNotifier {
   PlaylistManager({
     required DatabaseHelper databaseHelper,
     required List<MusicFile> allSongs,
-  }) : _databaseHelper = databaseHelper,
-       _allSongs = allSongs {
-    _allSongs.sort((firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
+  })  : _databaseHelper = databaseHelper,
+        _allSongs = allSongs {
+    _allSongs.sort(
+        (firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
     _currentPlaylistSongs = List.from(_allSongs);
   }
 
@@ -61,7 +62,8 @@ final class PlaylistManager with ChangeNotifier {
     }
   }
 
-  Future<List<MusicFile>> getPlaylistSongsByName(String playlistName, List<MusicFile> allSongs) async {
+  Future<List<MusicFile>> getPlaylistSongsByName(
+      String playlistName, List<MusicFile> allSongs) async {
     if (playlistName == "All Files") {
       return List.from(allSongs);
     }
@@ -72,15 +74,18 @@ final class PlaylistManager with ChangeNotifier {
     }
 
     final playlistSongs = await getPlaylistSongs(playlist['id']);
-    final playlistSongPaths = playlistSongs.map((song) => song['songPath'] as String).toList();
-    
-    return allSongs.where((song) => playlistSongPaths.contains(song.filePath)).toList();
+    final playlistSongPaths =
+        playlistSongs.map((song) => song['songPath'] as String).toList();
+
+    return allSongs
+        .where((song) => playlistSongPaths.contains(song.filePath))
+        .toList();
   }
 
   Future<List<String>> getAllPlaylistNames() async {
     final playlists = await getPlaylists();
     final playlistNames = ["All Files"];
-    
+
     for (final playlist in playlists) {
       playlistNames.add(playlist['name'] as String);
     }
@@ -94,7 +99,8 @@ final class PlaylistManager with ChangeNotifier {
 
   Future<void> switchToPlaylist(String playlistName) async {
     _currentPlaylist = playlistName;
-    _currentPlaylistSongs = await getPlaylistSongsByName(_currentPlaylist, _allSongs);
+    _currentPlaylistSongs =
+        await getPlaylistSongsByName(_currentPlaylist, _allSongs);
     notifyListeners();
   }
 
@@ -102,22 +108,24 @@ final class PlaylistManager with ChangeNotifier {
     await switchToPlaylist(_currentPlaylist);
   }
 
-  Future<void> addSongToPlaylistByName(String playlistName, String songPath) async {
+  Future<void> addSongToPlaylistByName(
+      String playlistName, String songPath) async {
     final playlist = await getPlaylistByName(playlistName);
     if (playlist != null) {
       await addSongToPlaylist(playlist['id'], songPath);
-      
+
       if (_currentPlaylist == playlistName) {
         await refreshCurrentPlaylist();
       }
     }
   }
 
-  Future<void> removeSongFromPlaylistByName(String playlistName, String songPath) async {
+  Future<void> removeSongFromPlaylistByName(
+      String playlistName, String songPath) async {
     final playlist = await getPlaylistByName(playlistName);
     if (playlist != null) {
       await removeSongFromPlaylist(playlist['id'], songPath);
-      
+
       if (_currentPlaylist == playlistName) {
         await refreshCurrentPlaylist();
       }
@@ -129,7 +137,7 @@ final class PlaylistManager with ChangeNotifier {
     if (playlist != null) {
       await deletePlaylist(playlist['id']);
       await loadAvailablePlaylists();
-      
+
       if (_currentPlaylist == playlistName) {
         await switchToPlaylist("All Files");
       }
@@ -140,12 +148,12 @@ final class PlaylistManager with ChangeNotifier {
     if (playlistName == "All Files") {
       return true;
     }
-    
+
     final playlist = await getPlaylistByName(playlistName);
     if (playlist == null) {
       return false;
     }
-    
+
     final playlistSongs = await getPlaylistSongs(playlist['id']);
     return playlistSongs.any((song) => song['songPath'] == songPath);
   }
@@ -153,14 +161,14 @@ final class PlaylistManager with ChangeNotifier {
   Future<List<String>> getPlaylistsContainingSong(String songPath) async {
     final playlists = await getPlaylists();
     final containingPlaylists = <String>[];
-    
+
     for (final playlist in playlists) {
       final isInPlaylist = await isSongInPlaylist(playlist['name'], songPath);
       if (isInPlaylist) {
         containingPlaylists.add(playlist['name']);
       }
     }
-    
+
     return containingPlaylists;
   }
 

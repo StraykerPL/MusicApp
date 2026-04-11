@@ -6,7 +6,8 @@ typedef DatabaseProvider = Future<Database> Function();
 class DatabaseHelper {
   static const _databaseName = 'strayker_music.db';
 
-  DatabaseHelper({DatabaseProvider? databaseProvider}) : _databaseProvider = databaseProvider ?? _openDatabase;
+  DatabaseHelper({DatabaseProvider? databaseProvider})
+      : _databaseProvider = databaseProvider ?? _openDatabase;
 
   final DatabaseProvider _databaseProvider;
 
@@ -14,7 +15,8 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = '$dbPath/$_databaseName';
 
-    return openDatabase(path, version: 1, singleInstance: true, onCreate: (db, version) {
+    return openDatabase(path, version: 1, singleInstance: true,
+        onCreate: (db, version) {
       db.execute('''
         CREATE TABLE settings (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +71,8 @@ class DatabaseHelper {
     return db.query(tableName);
   }
 
-  Future<void> insertData(String tableName, List<Map<String, dynamic>> data) async {
+  Future<void> insertData(
+      String tableName, List<Map<String, dynamic>> data) async {
     final db = await _databaseProvider();
 
     for (var row in data) {
@@ -83,7 +86,8 @@ class DatabaseHelper {
     await db.update(tableName, data);
   }
 
-  Future<void> updateDataByName(String tableName, String name, Map<String, dynamic> data) async {
+  Future<void> updateDataByName(
+      String tableName, String name, Map<String, dynamic> data) async {
     final db = await _databaseProvider();
 
     await db.update(tableName, data, where: 'name = ?', whereArgs: [name]);
@@ -102,7 +106,8 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getPlaylistSongs(int playlistId) async {
     final db = await _databaseProvider();
-    return db.query('playlistSongs', where: 'playlistId = ?', whereArgs: [playlistId]);
+    return db.query('playlistSongs',
+        where: 'playlistId = ?', whereArgs: [playlistId]);
   }
 
   Future<int> createPlaylist(String playlistName) async {
@@ -112,17 +117,21 @@ class DatabaseHelper {
 
   Future<void> addSongToPlaylist(int playlistId, String songPath) async {
     final db = await _databaseProvider();
-    await db.insert('playlistSongs', {'playlistId': playlistId, 'songPath': songPath});
+    await db.insert(
+        'playlistSongs', {'playlistId': playlistId, 'songPath': songPath});
   }
 
   Future<void> removeSongFromPlaylist(int playlistId, String songPath) async {
     final db = await _databaseProvider();
-    await db.delete('playlistSongs', where: 'playlistId = ? AND songPath = ?', whereArgs: [playlistId, songPath]);
+    await db.delete('playlistSongs',
+        where: 'playlistId = ? AND songPath = ?',
+        whereArgs: [playlistId, songPath]);
   }
 
   Future<void> deletePlaylist(int playlistId) async {
     final db = await _databaseProvider();
-    await db.delete('playlistSongs', where: 'playlistId = ?', whereArgs: [playlistId]);
+    await db.delete('playlistSongs',
+        where: 'playlistId = ?', whereArgs: [playlistId]);
     await db.delete('playlists', where: 'id = ?', whereArgs: [playlistId]);
   }
 }

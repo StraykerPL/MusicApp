@@ -14,7 +14,8 @@ final class SoundCollectionManager {
   final List<MusicFile> _playedSongs = [];
   int _playedSongsMaxAmount = 0;
 
-  StreamSubscription<PlaybackState> get getPlaybackStateSubscription => _soundPlayer.getPlaybackStateSubscription();
+  StreamSubscription<PlaybackState> get getPlaybackStateSubscription =>
+      _soundPlayer.getPlaybackStateSubscription();
 
   SoundCollectionManager({
     required SoundPlayer player,
@@ -28,10 +29,11 @@ final class SoundCollectionManager {
 
   Future<MusicFile> playRandomMusic(List<MusicFile> availableSongs) async {
     MusicFile randomMusicFile = _getRandomMusicFile(availableSongs);
-    final settings = await _databaseHelper.getAllData(DatabaseConstants.settingsTableName);
+    final settings =
+        await _databaseHelper.getAllData(DatabaseConstants.settingsTableName);
     for (final {"name": settingName, "value": settingValue} in settings) {
       if (settingName == DatabaseConstants.playedSongsMaxAmountTableValueName) {
-        _playedSongsMaxAmount = int.parse(settingValue); 
+        _playedSongsMaxAmount = int.parse(settingValue);
 
         break;
       }
@@ -47,13 +49,12 @@ final class SoundCollectionManager {
       randomMusicFile = _getRandomMusicFile(availableSongs);
     }
 
-    if(_playedSongs.length < _playedSongsMaxAmount) {
+    if (_playedSongs.length < _playedSongsMaxAmount) {
       _playedSongs.add(randomMusicFile);
       await _soundPlayer.playNewSong(randomMusicFile);
 
       return randomMusicFile;
-    }
-    else if(_playedSongs.length >= _playedSongsMaxAmount) {
+    } else if (_playedSongs.length >= _playedSongsMaxAmount) {
       _playedSongs.removeAt(0);
       _playedSongs.add(randomMusicFile);
       await _soundPlayer.playNewSong(randomMusicFile);

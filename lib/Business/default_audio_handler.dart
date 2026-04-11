@@ -25,7 +25,8 @@ final class DefaultAudioHandler extends BaseAudioHandler {
       session.configure(const AudioSessionConfiguration.music());
       _session = session;
 
-      _interruptEventStream = _session.interruptionEventStream.listen((event) async {
+      _interruptEventStream =
+          _session.interruptionEventStream.listen((event) async {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
@@ -54,7 +55,8 @@ final class DefaultAudioHandler extends BaseAudioHandler {
         await _player.pause();
       });
 
-      _deviceChangeEventStream = session.devicesChangedEventStream.listen((event) async {
+      _deviceChangeEventStream =
+          session.devicesChangedEventStream.listen((event) async {
         await _player.pause();
       });
     });
@@ -89,15 +91,11 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   Future<void> stop() async => await _player.stop();
 
   Future<void> playNew(MediaItem item, String path) async {
-    if(await _session.setActive(true)) {
+    if (await _session.setActive(true)) {
       try {
         mediaItem.add(item);
-        await _player.setAudioSource(
-          AudioSource.file(path, tag: item)
-        );
-      } on PlayerInterruptedException catch (_) {
-        
-      }
+        await _player.setAudioSource(AudioSource.file(path, tag: item));
+      } on PlayerInterruptedException catch (_) {}
       await _player.play();
     }
   }
@@ -105,8 +103,7 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   Future<void> resumeOrPauseSong() async {
     if (_player.playing) {
       await _player.pause();
-    }
-    else {
+    } else {
       await _player.play();
     }
   }

@@ -22,7 +22,8 @@ void main() {
 
     setUp(() async {
       fakeDatabase = await FakeDatabase.seeded();
-      databaseHelper = DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
+      databaseHelper =
+          DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
       playbackStateController = StreamController<PlaybackState>.broadcast();
       soundPlayer = MockSoundPlayer();
       when(() => soundPlayer.playNewSong(any())).thenAnswer((_) async {});
@@ -37,7 +38,8 @@ void main() {
       await fakeDatabase.close();
     });
 
-    test('playRandomMusic plays selected song when repeat history is disabled', () async {
+    test('playRandomMusic plays selected song when repeat history is disabled',
+        () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
         databaseHelper: databaseHelper,
@@ -54,7 +56,9 @@ void main() {
       verify(() => soundPlayer.playNewSong(songs[1])).called(1);
     });
 
-    test('playRandomMusic skips already played songs when repeat history is enabled', () async {
+    test(
+        'playRandomMusic skips already played songs when repeat history is enabled',
+        () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
         databaseHelper: databaseHelper,
@@ -64,7 +68,8 @@ void main() {
         createSong('/music/alpha.mp3'),
         createSong('/music/beta.mp3'),
       ];
-      await databaseHelper.updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
+      await databaseHelper
+          .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
 
       final first = await manager.playRandomMusic(songs);
       final second = await manager.playRandomMusic(songs);
@@ -75,7 +80,9 @@ void main() {
       verify(() => soundPlayer.playNewSong(songs[1])).called(1);
     });
 
-    test('playRandomMusic removes oldest remembered song when history reaches limit', () async {
+    test(
+        'playRandomMusic removes oldest remembered song when history reaches limit',
+        () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
         databaseHelper: databaseHelper,
@@ -86,7 +93,8 @@ void main() {
         createSong('/music/beta.mp3'),
         createSong('/music/gamma.mp3'),
       ];
-      await databaseHelper.updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
+      await databaseHelper
+          .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
 
       await manager.playRandomMusic(songs);
       await manager.playRandomMusic(songs);

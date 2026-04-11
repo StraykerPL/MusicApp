@@ -17,7 +17,8 @@ void main() {
   });
 
   group('DefaultAudioHandler', () {
-    test('transformEvent exposes play control when player is idle and paused', () async {
+    test('transformEvent exposes play control when player is idle and paused',
+        () async {
       final harness = await HandlerHarness.create(
         isPlaying: false,
         processingState: ProcessingState.idle,
@@ -58,7 +59,9 @@ void main() {
       verify(() => harness.player.stop()).called(1);
     });
 
-    test('playNew activates session, updates media item, loads source, and starts playback', () async {
+    test(
+        'playNew activates session, updates media item, loads source, and starts playback',
+        () async {
       final harness = await HandlerHarness.create(sessionActive: true);
       addTearDown(harness.close);
       const item = MediaItem(id: 'song-1', title: 'Song 1');
@@ -142,7 +145,8 @@ void main() {
       verify(() => harness.player.setVolume(1.0)).called(1);
     });
 
-    test('dispose releases player and unsubscribes from session streams', () async {
+    test('dispose releases player and unsubscribes from session streams',
+        () async {
       final harness = await HandlerHarness.create();
 
       await harness.handler.dispose();

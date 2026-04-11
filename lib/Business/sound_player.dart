@@ -16,8 +16,7 @@ class SoundPlayer {
   }
 
   Future<void> playNewSong(MusicFile? newSong) async {
-    if (newSong != null)
-    {
+    if (newSong != null) {
       await _handler.playNew(newSong.mediaItemMetaData, newSong.filePath);
     }
   }

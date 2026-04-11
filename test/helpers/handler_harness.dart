@@ -34,11 +34,13 @@ class HandlerHarness {
     final player = MockAudioPlayer();
     final session = MockAudioSession();
     final playbackEvents = StreamController<PlaybackEvent>.broadcast();
-    final interruptionEvents = StreamController<AudioInterruptionEvent>.broadcast();
+    final interruptionEvents =
+        StreamController<AudioInterruptionEvent>.broadcast();
     final noisyEvents = StreamController<void>.broadcast();
     final deviceEvents = StreamController<AudioDevicesChangedEvent>.broadcast();
 
-    when(() => player.playbackEventStream).thenAnswer((_) => playbackEvents.stream);
+    when(() => player.playbackEventStream)
+        .thenAnswer((_) => playbackEvents.stream);
     when(() => player.playing).thenReturn(isPlaying);
     when(() => player.processingState).thenReturn(processingState);
     when(() => player.loopMode).thenReturn(loopMode);
@@ -53,9 +55,12 @@ class HandlerHarness {
 
     when(() => session.configure(any())).thenAnswer((_) async {});
     when(() => session.setActive(any())).thenAnswer((_) async => sessionActive);
-    when(() => session.interruptionEventStream).thenAnswer((_) => interruptionEvents.stream);
-    when(() => session.becomingNoisyEventStream).thenAnswer((_) => noisyEvents.stream);
-    when(() => session.devicesChangedEventStream).thenAnswer((_) => deviceEvents.stream);
+    when(() => session.interruptionEventStream)
+        .thenAnswer((_) => interruptionEvents.stream);
+    when(() => session.becomingNoisyEventStream)
+        .thenAnswer((_) => noisyEvents.stream);
+    when(() => session.devicesChangedEventStream)
+        .thenAnswer((_) => deviceEvents.stream);
 
     final handler = DefaultAudioHandler(
       player: player,

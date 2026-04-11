@@ -10,7 +10,8 @@ void main() {
 
     setUp(() async {
       fakeDatabase = await FakeDatabase.seeded();
-      databaseHelper = DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
+      databaseHelper =
+          DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
     });
 
     tearDown(() async {
@@ -48,7 +49,8 @@ void main() {
         {'name': 'volume', 'value': '10'},
       ]);
 
-      await databaseHelper.updateDataByName('settings', 'volume', {'value': '20'});
+      await databaseHelper
+          .updateDataByName('settings', 'volume', {'value': '20'});
 
       expect(
         await fakeDatabase.snapshot('settings'),
@@ -65,7 +67,8 @@ void main() {
       expect(await fakeDatabase.snapshot('playlists'), isEmpty);
     });
 
-    test('playlist operations keep playlist and song data consistent', () async {
+    test('playlist operations keep playlist and song data consistent',
+        () async {
       final playlistId = await databaseHelper.createPlaylist('Road Trip');
 
       await databaseHelper.addSongToPlaylist(playlistId, '/songs/one.mp3');
@@ -75,7 +78,9 @@ void main() {
 
       expect(
         createdPlaylists,
-        equals([{'name': 'Road Trip', 'id': playlistId}]),
+        equals([
+          {'name': 'Road Trip', 'id': playlistId}
+        ]),
       );
       expect(
         createdSongs,

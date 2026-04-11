@@ -16,7 +16,8 @@ Future<void> main() async {
   final audioHandler = await AudioService.init(
     builder: () => DefaultAudioHandler(),
     config: const AudioServiceConfig(
-      androidNotificationChannelId: 'pl.straykersoftware.strayker_music.channel.audio',
+      androidNotificationChannelId:
+          'pl.straykersoftware.strayker_music.channel.audio',
       androidNotificationChannelName: Constants.appName,
     ),
   );
@@ -27,10 +28,16 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider<List<MusicFile>>.value(value: files),
-        Provider<SoundPlayer>(create: (_) => SoundPlayer(handler: audioHandler)),
+        Provider<SoundPlayer>(
+            create: (_) => SoundPlayer(handler: audioHandler)),
         Provider<DatabaseHelper>.value(value: dbHelper),
-        ListenableProvider(create: (ctx) => PlaylistManager(databaseHelper: ctx.read<DatabaseHelper>(), allSongs: ctx.read<List<MusicFile>>())),
-        Provider<SoundCollectionManager>(create: (ctx) => SoundCollectionManager(player: ctx.read<SoundPlayer>())),
+        ListenableProvider(
+            create: (ctx) => PlaylistManager(
+                databaseHelper: ctx.read<DatabaseHelper>(),
+                allSongs: ctx.read<List<MusicFile>>())),
+        Provider<SoundCollectionManager>(
+            create: (ctx) =>
+                SoundCollectionManager(player: ctx.read<SoundPlayer>())),
       ],
       child: const MyApp(),
     ),
@@ -46,10 +53,9 @@ class MyApp extends StatelessWidget {
       title: Constants.appName,
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A2D47),
-          primary: const Color(0xFF1A2D47),
-          brightness: Brightness.dark
-        ),
+            seedColor: const Color(0xFF1A2D47),
+            primary: const Color(0xFF1A2D47),
+            brightness: Brightness.dark),
         brightness: Brightness.dark,
         useMaterial3: true,
       ),
