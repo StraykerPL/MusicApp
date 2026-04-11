@@ -4,21 +4,32 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 
-final class DefaultAudioHandler extends BaseAudioHandler {
-  final _player = AudioPlayer();
+typedef AudioSessionProvider = Future<AudioSession> Function();
+typedef NotificationSkipHandler = Future<void> Function();
+
+final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
+  final AudioPlayer _player;
+  final AudioSessionProvider _sessionProvider;
+  NotificationSkipHandler? _skipToNextHandler;
+  NotificationSkipHandler? _skipToPreviousHandler;
   late AudioSession _session;
   late StreamSubscription<void> _noisyCheckStream;
   late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
   late StreamSubscription<AudioDevicesChangedEvent> _deviceChangeEventStream;
+  bool get isLoopModeOn => _player.loopMode == LoopMode.all;
 
-  DefaultAudioHandler() {
-    _player.setLoopMode(LoopMode.all);
+  DefaultAudioHandler({
+    AudioPlayer? player,
+    AudioSessionProvider? sessionProvider,
+  })  : _player = player ?? AudioPlayer(),
+        _sessionProvider = sessionProvider ?? (() => AudioSession.instance) {
     _player.playbackEventStream.map(transformEvent).pipe(playbackState);
-    AudioSession.instance.then((session) {
+    _sessionProvider().then((session) {
       session.configure(const AudioSessionConfiguration.music());
       _session = session;
 
-       _interruptEventStream = _session.interruptionEventStream.listen((event) async {
+      _interruptEventStream =
+          _session.interruptionEventStream.listen((event) async {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
@@ -37,8 +48,6 @@ final class DefaultAudioHandler extends BaseAudioHandler {
               break;
 
             case AudioInterruptionType.pause:
-              await _player.play();
-              break;
             case AudioInterruptionType.unknown:
               break;
           }
@@ -49,7 +58,8 @@ final class DefaultAudioHandler extends BaseAudioHandler {
         await _player.pause();
       });
 
-      _deviceChangeEventStream = session.devicesChangedEventStream.listen((event) async {
+      _deviceChangeEventStream =
+          session.devicesChangedEventStream.listen((event) async {
         await _player.pause();
       });
     });
@@ -60,6 +70,8 @@ final class DefaultAudioHandler extends BaseAudioHandler {
       controls: [
         _player.playing ? MediaControl.pause : MediaControl.play,
         MediaControl.stop,
+        MediaControl.skipToPrevious,
+        MediaControl.skipToNext,
       ],
       processingState: const {
         ProcessingState.idle: AudioProcessingState.idle,
@@ -83,12 +95,31 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   @override
   Future<void> stop() async => await _player.stop();
 
+  @override
+  Future<void> skipToNext() async {
+    await _skipToNextHandler?.call();
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    await _skipToPreviousHandler?.call();
+  }
+  // End of widget handling code.
+
+  void setNotificationSkipHandlers({
+    NotificationSkipHandler? skipToNext,
+    NotificationSkipHandler? skipToPrevious,
+  }) {
+    _skipToNextHandler = skipToNext;
+    _skipToPreviousHandler = skipToPrevious;
+  }
+
   Future<void> playNew(MediaItem item, String path) async {
-    if(await _session.setActive(true)) {
-      mediaItem.add(item);
-      await _player.setAudioSource(
-        AudioSource.file(path, tag: item)
-      );
+    if (await _session.setActive(true)) {
+      try {
+        mediaItem.add(item);
+        await _player.setAudioSource(AudioSource.file(path, tag: item));
+      } on PlayerInterruptedException catch (_) {}
       await _player.play();
     }
   }
@@ -96,19 +127,13 @@ final class DefaultAudioHandler extends BaseAudioHandler {
   Future<void> resumeOrPauseSong() async {
     if (_player.playing) {
       await _player.pause();
-    }
-    else {
+    } else {
       await _player.play();
     }
   }
 
-  Future<void> setLoop() async {
-    if (_player.loopMode == LoopMode.all) {
-      await _player.setLoopMode(LoopMode.off);
-    }
-    else {
-      _player.setLoopMode(LoopMode.all);
-    }
+  Future<void> setLoopMode(bool enabled) async {
+    await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
   }
 
   Future<void> dispose() async {

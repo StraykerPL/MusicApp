@@ -9,23 +9,22 @@ interface class MusicFile {
   String get name => _nameLocal;
   String get filePath => _filePathLocal;
   set filePath(String value) => {
-    _filePathLocal = value,
-    _nameLocal = _getFileName(value),
-    _mediaItem = MediaItem(id: "1", title: _nameLocal)
-  };
+        _filePathLocal = value,
+        _nameLocal = _getFileName(value),
+        _mediaItem = MediaItem(id: "1", title: _nameLocal)
+      };
   MediaItem get mediaItemMetaData => _mediaItem;
 
   String _getFileName(String givenPath) {
     String name = givenPath;
 
-    if(name.endsWith(Constants.stringMp3Extension)) {
-      name = name.replaceAll(
-        Constants.stringMp3Extension,
-        Constants.stringEmpty);
+    if (name.endsWith(Constants.stringMp3Extension)) {
+      name =
+          name.replaceAll(Constants.stringMp3Extension, Constants.stringEmpty);
     }
 
     for (var i = name.length - 1; i > 0; i--) {
-      if(name[i] == '/') {
+      if (name[i] == '/') {
         name = name.substring(i + 1);
 
         break;

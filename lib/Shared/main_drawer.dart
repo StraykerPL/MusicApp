@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:strayker_music/Business/playlist_manager.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Widgets/settings.dart';
 
@@ -16,12 +16,20 @@ class MainDrawer extends StatefulWidget {
 
 class _MainDrawer extends State<MainDrawer> {
   late final PackageInfo _packageInfo;
+  late final PlaylistManager _playlistManager;
+  List<String> _playlists = [];
 
   @override
   void initState() {
     PackageInfo.fromPlatform().then((info) {
       _packageInfo = info;
     });
+    _playlistManager = context.read<PlaylistManager>();
+    _playlistManager.loadAvailablePlaylists().then((_) => {
+          setState(() {
+            _playlists = _playlistManager.availablePlaylists;
+          })
+        });
     super.initState();
   }
 
@@ -35,15 +43,19 @@ class _MainDrawer extends State<MainDrawer> {
           content: SingleChildScrollView(
             child: ListBody(
               children: [
-                Text('Version: ${_packageInfo.version}+${_packageInfo.buildNumber}\n\nOS Version: ${Platform.operatingSystemVersion}\n\nDart: ${Platform.version}'),
+                Text(
+                    'Version: ${_packageInfo.version}+${_packageInfo.buildNumber}\n\nOS Version: ${Platform.operatingSystemVersion}\n\nDart: ${Platform.version}'),
                 const Image(image: AssetImage('assets/logo.png')),
-                const Text("Copyright © 2018-actual Daniel Strayker Nowak\nAll rights reserved")
+                const Text(
+                    "Copyright © 2018-actual Daniel Strayker Nowak\nAll rights reserved")
               ],
             ),
           ),
           actions: [
             TextButton(
-              child: Text('OK', style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color)),
+              child: Text('OK',
+                  style: TextStyle(
+                      color: Theme.of(context).textTheme.displayLarge?.color)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -52,22 +64,6 @@ class _MainDrawer extends State<MainDrawer> {
         );
       },
     );
-  }
-
-  TreeNode _buildTreeNodes() {
-    // TODO: Replace placeholder with database read logic.
-    final List<String> playlists = [
-      "Playlist 1",
-      "Playlist 2",
-      "Playlist 3",
-    ];
-    TreeNode rootNode = TreeNode(data: "Playlists");
-    
-    for (int i = 0; i < playlists.length; i++) {
-      rootNode.add(TreeNode(key: i.toString(), data: playlists[i]));
-    }
-
-    return rootNode;
   }
 
   @override
@@ -90,36 +86,31 @@ class _MainDrawer extends State<MainDrawer> {
             ),
           ),
           Expanded(
-            child: TreeView.simple(
-              padding: const EdgeInsets.only(right: 16.0),
-              tree: _buildTreeNodes(),
-              expansionIndicatorBuilder: (context, node) => ChevronIndicator.rightDown(
-                alignment: Alignment.centerRight,
-                tree: node,
-                color: Theme.of(context).textTheme.displayLarge?.color,
-              ),
-              onItemTap: (item) {
-                // TODO: Add indicator to ListTile for currently active playlist.
-                // if (!item.isRoot) {
-                //   ScaffoldMessenger.of(context).showSnackBar(
-                //     SnackBar(content: Text("Selected: ${item.data}")),
-                //   );
-                // }
-              },
-              builder: (context, node) => ListTile(
-                title: Text(
-                  node.data.toString(),
-                  style: TextStyle(
-                    fontWeight: node.isLeaf ? FontWeight.normal : FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
+              child: ListenableBuilder(
+            listenable: context.read<PlaylistManager>(),
+            builder: (BuildContext ctx, Widget? child) {
+              return ListView.builder(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  itemCount: _playlists.length,
+                  itemBuilder: (ctx, index) {
+                    return ListTile(
+                      title: Text(_playlists[index]),
+                      onTap: () async {
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                          await _playlistManager
+                              .switchToPlaylist(_playlists[index]);
+                        }
+                      },
+                    );
+                  });
+            },
+          )),
           ListTile(
             title: const Text("Settings"),
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (ctxt) => context.watch<SettingsView>()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SettingsView()));
             },
           ),
           ListTile(

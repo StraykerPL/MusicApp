@@ -13,8 +13,9 @@ final class SoundFilesReader {
     Permission.manageExternalStorage.request();
 
     List<MusicFile> songs = [];
-    var directories = await _dbHelper.getAllData(DatabaseConstants.storagePathsTableName);
-    for(final {"name": fileSystemPath as String} in directories) {
+    var directories =
+        await _dbHelper.getAllData(DatabaseConstants.storagePathsTableName);
+    for (final {"name": fileSystemPath as String} in directories) {
       final Directory dir = Directory(fileSystemPath);
       List<FileSystemEntity> files = [];
 
@@ -24,8 +25,8 @@ final class SoundFilesReader {
         debugPrint(e.toString());
       }
 
-      for(FileSystemEntity entity in files) {
-        if(entity.path.endsWith(Constants.stringMp3Extension)) {
+      for (FileSystemEntity entity in files) {
+        if (entity.path.endsWith(Constants.stringMp3Extension)) {
           final MusicFile newFile = MusicFile();
           newFile.filePath = entity.path;
           songs.add(newFile);

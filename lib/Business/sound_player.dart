@@ -4,7 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Business/default_audio_handler.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
-final class SoundPlayer {
+class SoundPlayer {
   late final DefaultAudioHandler _handler;
 
   SoundPlayer({required DefaultAudioHandler handler}) {
@@ -16,8 +16,7 @@ final class SoundPlayer {
   }
 
   Future<void> playNewSong(MusicFile? newSong) async {
-    if (newSong != null)
-    {
+    if (newSong != null) {
       await _handler.playNew(newSong.mediaItemMetaData, newSong.filePath);
     }
   }
@@ -26,7 +25,17 @@ final class SoundPlayer {
     await _handler.resumeOrPauseSong();
   }
 
-  Future<void> setLoop() async {
-    await _handler.setLoop();
+  Future<void> setLoopMode(bool enabled) async {
+    await _handler.setLoopMode(enabled);
+  }
+
+  void setNotificationSkipHandlers({
+    NotificationSkipHandler? skipToNext,
+    NotificationSkipHandler? skipToPrevious,
+  }) {
+    _handler.setNotificationSkipHandlers(
+      skipToNext: skipToNext,
+      skipToPrevious: skipToPrevious,
+    );
   }
 }
