@@ -108,6 +108,39 @@ void main() {
       verify(() => soundPlayer.playNewSong(songs[2])).called(1);
     });
 
+    test(
+        'playRandomMusic limits repeat history to one less than available songs',
+        () async {
+      final manager = SoundCollectionManager(
+        player: soundPlayer,
+        databaseHelper: databaseHelper,
+        random: FakeRandom([0, 1, 2, 0]),
+      );
+      final songs = [
+        createSong('/music/alpha.mp3'),
+        createSong('/music/beta.mp3'),
+        createSong('/music/gamma.mp3'),
+      ];
+      await databaseHelper
+          .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '3'});
+
+      await manager.playRandomMusic(songs);
+      await manager.playRandomMusic(songs);
+      final third = await manager.playRandomMusic(songs);
+      final fourth = await manager.playRandomMusic(songs);
+      final settings = await databaseHelper.getAllData('settings');
+      final playedSongsMaxAmount = settings.firstWhere(
+        (setting) => setting['name'] == 'playedSongsMaxAmount',
+      );
+
+      expect(third, songs[2]);
+      expect(fourth, songs[0]);
+      expect(playedSongsMaxAmount['value'], '2');
+      verify(() => soundPlayer.playNewSong(songs[0])).called(2);
+      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
+      verify(() => soundPlayer.playNewSong(songs[2])).called(1);
+    });
+
     test('selectAndPlaySong delegates selected song to sound player', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,

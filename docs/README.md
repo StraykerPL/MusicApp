@@ -1,3 +1,9 @@
-#Strayker Music Docs
+# Strayker Music Docs
 
-Here are stored all info necessary for documentation, but in files. Any info, that can be pasted into Wiki should be provided there.
+This folder stores documentation that can be published in the project wiki,
+release pages, and app store listings.
+
+## End-user documentation
+
+- [End-user guide](end-user-guide.md)
+- [Store listing placeholders](store-listing-placeholders.md)

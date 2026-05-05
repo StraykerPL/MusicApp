@@ -30,20 +30,17 @@ final class SoundCollectionManager {
 
   Future<MusicFile> playRandomMusic(List<MusicFile> availableSongs) async {
     MusicFile randomMusicFile = _getRandomMusicFile(availableSongs);
-    final settings =
-        await _databaseHelper.getAllData(DatabaseConstants.settingsTableName);
-    for (final {"name": settingName, "value": settingValue} in settings) {
-      if (settingName == DatabaseConstants.playedSongsMaxAmountTableValueName) {
-        _playedSongsMaxAmount = int.parse(settingValue);
-
-        break;
-      }
-    }
+    _playedSongsMaxAmount = await _getPlayedSongsMaxAmount(availableSongs);
 
     if (_playedSongsMaxAmount == 0 || availableSongs.length == 1) {
       await _soundPlayer.playNewSong(randomMusicFile);
 
       return randomMusicFile;
+    }
+
+    _playedSongs.removeWhere((song) => !availableSongs.contains(song));
+    while (_playedSongs.length > _playedSongsMaxAmount) {
+      _playedSongs.removeAt(0);
     }
 
     while (_playedSongs.contains(randomMusicFile)) {
@@ -90,5 +87,33 @@ final class SoundCollectionManager {
 
   MusicFile _getRandomMusicFile(List<MusicFile> availableSongs) {
     return availableSongs[_random.nextInt(availableSongs.length)];
+  }
+
+  Future<int> _getPlayedSongsMaxAmount(List<MusicFile> availableSongs) async {
+    final settings =
+        await _databaseHelper.getAllData(DatabaseConstants.settingsTableName);
+    for (final {"name": settingName, "value": settingValue} in settings) {
+      if (settingName == DatabaseConstants.playedSongsMaxAmountTableValueName) {
+        final savedMaxAmount = int.parse(settingValue);
+        final maxAllowedAmount = _getPlayedSongsMaxAllowed(availableSongs);
+        final clampedMaxAmount = savedMaxAmount.clamp(0, maxAllowedAmount);
+
+        if (clampedMaxAmount != savedMaxAmount) {
+          await _databaseHelper.updateDataByName(
+            DatabaseConstants.settingsTableName,
+            DatabaseConstants.playedSongsMaxAmountTableValueName,
+            {"value": clampedMaxAmount.toString()},
+          );
+        }
+
+        return clampedMaxAmount;
+      }
+    }
+
+    return 0;
+  }
+
+  int _getPlayedSongsMaxAllowed(List<MusicFile> availableSongs) {
+    return availableSongs.length > 1 ? availableSongs.length - 1 : 0;
   }
 }

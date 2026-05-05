@@ -6,7 +6,10 @@ import 'package:provider/provider.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/playlist_manager.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
+import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
+import 'package:strayker_music/Shared/input_security.dart';
+import 'package:strayker_music/Shared/storage_path_policy.dart';
 import 'package:filesystem_picker/filesystem_picker.dart';
 
 class SettingsView extends StatefulWidget {
@@ -28,8 +31,30 @@ class _SettingsViewState extends State<SettingsView> {
   List<Map<String, dynamic>> _playlists = [];
   String? _currentlySelectedPlaylist;
 
+  int get _playedSongsMaxAllowed {
+    final loadedSongsAmount = context.read<List<MusicFile>>().length;
+
+    return loadedSongsAmount > 1 ? loadedSongsAmount - 1 : 0;
+  }
+
+  int _clampPlayedSongsMaxAmount(int value) {
+    return value.clamp(0, _playedSongsMaxAllowed);
+  }
+
+  void _setPlayedSongsMaxAmountInput(int value) {
+    _playedSongsMaxAmount = _clampPlayedSongsMaxAmount(value);
+    _playedSongsMaxAmountInputController.value =
+        _playedSongsMaxAmountInputController.value.copyWith(
+      text: _playedSongsMaxAmount.toString(),
+      selection: TextSelection.collapsed(
+        offset: _playedSongsMaxAmount.toString().length,
+      ),
+    );
+  }
+
   Future<void> saveSettings() async {
     final dbContext = context.read<DatabaseHelper>();
+    _playedSongsMaxAmount = _clampPlayedSongsMaxAmount(_playedSongsMaxAmount);
     await dbContext.updateDataByName(
         DatabaseConstants.settingsTableName,
         DatabaseConstants.playedSongsMaxAmountTableValueName,
@@ -53,13 +78,14 @@ class _SettingsViewState extends State<SettingsView> {
         await dbContext.getAllData(DatabaseConstants.settingsTableName);
     for (var row in settingsRawData) {
       if (row["name"] == DatabaseConstants.playedSongsMaxAmountTableValueName) {
-        _playedSongsMaxAmount = int.parse(row["value"]);
-        _playedSongsMaxAmountInputController.value =
-            _playedSongsMaxAmountInputController.value.copyWith(
-          text: _playedSongsMaxAmount.toString(),
-          selection: TextSelection.collapsed(
-              offset: _playedSongsMaxAmount.toString().length),
-        );
+        final savedPlayedSongsMaxAmount = int.parse(row["value"]);
+        _setPlayedSongsMaxAmountInput(savedPlayedSongsMaxAmount);
+        if (_playedSongsMaxAmount != savedPlayedSongsMaxAmount) {
+          await dbContext.updateDataByName(
+              DatabaseConstants.settingsTableName,
+              DatabaseConstants.playedSongsMaxAmountTableValueName,
+              {"value": _playedSongsMaxAmount});
+        }
       }
     }
 
@@ -89,6 +115,11 @@ class _SettingsViewState extends State<SettingsView> {
     }
 
     final playlistName = _newPlaylistNameController.text.trim();
+    final validationError = InputSecurity.getValidationError(playlistName);
+    if (validationError != null) {
+      _showErrorDialog(validationError);
+      return;
+    }
 
     // Check if playlist already exists
     if (_playlists.any((playlist) => playlist['name'] == playlistName)) {
@@ -158,6 +189,7 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   void dispose() {
+    _playedSongsMaxAmountInputController.dispose();
     _newPlaylistNameController.dispose();
     super.dispose();
   }
@@ -243,10 +275,19 @@ class _SettingsViewState extends State<SettingsView> {
                   onTapOutside: (event) {
                     FocusManager.instance.primaryFocus?.unfocus();
                   },
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  keyboardType: TextInputType.number
-                  // TODO: Add validation to not allow input of number surpassing max amount of available sound files.
-                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    const SecureTextInputFormatter(),
+                    LengthLimitingTextInputFormatter(6),
+                  ],
+                  onChanged: (value) {
+                    final newValue = int.tryParse(value) ?? 0;
+                    final clampedValue = _clampPlayedSongsMaxAmount(newValue);
+                    if (clampedValue != newValue) {
+                      _setPlayedSongsMaxAmountInput(clampedValue);
+                    }
+                  },
+                  keyboardType: TextInputType.number),
             ),
             const Text("Storage paths to look for sound files:"),
             SizedBox(
@@ -258,7 +299,6 @@ class _SettingsViewState extends State<SettingsView> {
                     children: [
                       ElevatedButton(
                           onPressed: () async {
-                            // TODO: Add validation to not allow access to restricted areas of filesystem.
                             var ok = await FilesystemPicker.open(
                               title: 'Folder Select',
                               context: context,
@@ -266,10 +306,22 @@ class _SettingsViewState extends State<SettingsView> {
                                   Uri(path: "/storage/emulated/0")),
                               fsType: FilesystemType.folder,
                               pickText: 'Add selected folder',
+                              fileTileSelectMode: FileTileSelectMode.wholeTile,
+                              itemFilter: (_, path, __) =>
+                                  StoragePathPolicy.canDisplayInPicker(path),
                             );
                             if (ok != null) {
+                              final validationError =
+                                  StoragePathPolicy.getValidationError(ok);
+                              if (validationError != null) {
+                                _showErrorDialog(validationError);
+                                return;
+                              }
+
                               setState(() {
-                                _soundStorageLocations.add(ok);
+                                if (!_soundStorageLocations.contains(ok)) {
+                                  _soundStorageLocations.add(ok);
+                                }
                               });
                             }
                           },
@@ -318,6 +370,11 @@ class _SettingsViewState extends State<SettingsView> {
                             hintText: "Enter playlist name",
                             border: OutlineInputBorder(),
                           ),
+                          inputFormatters: [
+                            const SecureTextInputFormatter(),
+                            LengthLimitingTextInputFormatter(
+                                InputSecurity.maxTextLength),
+                          ],
                           onSubmitted: (_) => createPlaylist(),
                         ),
                       ),
@@ -356,8 +413,11 @@ class _SettingsViewState extends State<SettingsView> {
               children: [
                 ElevatedButton(
                     onPressed: () {
-                      _playedSongsMaxAmount = int.parse(
-                          _playedSongsMaxAmountInputController.value.text);
+                      _playedSongsMaxAmount = int.tryParse(
+                            _playedSongsMaxAmountInputController.value.text,
+                          ) ??
+                          0;
+                      _setPlayedSongsMaxAmountInput(_playedSongsMaxAmount);
                       saveSettings();
                     },
                     child: Text("Save",
@@ -384,12 +444,7 @@ class _SettingsViewState extends State<SettingsView> {
                     onPressed: () {
                       setDefualtValues();
                       setState(() {
-                        _playedSongsMaxAmountInputController.value =
-                            _playedSongsMaxAmountInputController.value.copyWith(
-                          text: _playedSongsMaxAmount.toString(),
-                          selection: TextSelection.collapsed(
-                              offset: _playedSongsMaxAmount.toString().length),
-                        );
+                        _setPlayedSongsMaxAmountInput(_playedSongsMaxAmount);
                       });
                     },
                     child: Text("Load Default",
