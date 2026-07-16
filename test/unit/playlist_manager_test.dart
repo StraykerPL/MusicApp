@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/playlist_manager.dart';
+import 'package:strayker_music/Models/playlist.dart';
 
 import '../helpers/music_file_test_helper.dart';
 import '../mocks/fake_database.dart';
@@ -66,7 +67,7 @@ void main() {
       final existing = await manager.getPlaylistByName('Focus');
       final missing = await manager.getPlaylistByName('Missing');
 
-      expect(existing, {'id': 2, 'name': 'Focus'});
+      expect(existing, const Playlist(id: 2, name: 'Focus'));
       expect(missing, isNull);
     });
 

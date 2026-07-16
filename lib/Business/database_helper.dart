@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:strayker_music/Constants/database_constants.dart';
+import 'package:strayker_music/Models/playlist.dart';
+import 'package:strayker_music/Models/settings_snapshot.dart';
 
 typedef DatabaseProvider = Future<Database> Function();
 
@@ -104,10 +107,62 @@ class DatabaseHelper {
     return db.query('playlists');
   }
 
+  Future<List<Playlist>> getPlaylistModels() async {
+    final rows = await getPlaylists();
+    return [
+      for (final row in rows)
+        Playlist(id: row['id'] as int, name: row['name'] as String),
+    ];
+  }
+
   Future<List<Map<String, dynamic>>> getPlaylistSongs(int playlistId) async {
     final db = await _databaseProvider();
     return db.query('playlistSongs',
         where: 'playlistId = ?', whereArgs: [playlistId]);
+  }
+
+  Future<List<String>> getPlaylistSongPaths(int playlistId) async {
+    final rows = await getPlaylistSongs(playlistId);
+    return [for (final row in rows) row['songPath'] as String];
+  }
+
+  Future<SettingsSnapshot> getSettingsSnapshot() async {
+    final settings = await getAllData(DatabaseConstants.settingsTableName);
+    var playedSongsMaxAmount = DatabaseConstants.playedSongsMaxAmountDefault;
+    for (final row in settings) {
+      if (row['name'] == DatabaseConstants.playedSongsMaxAmountTableValueName) {
+        playedSongsMaxAmount = int.parse(row['value'].toString());
+      }
+    }
+
+    return SettingsSnapshot(
+      playedSongsMaxAmount: playedSongsMaxAmount,
+      storageLocations: await getStorageLocations(),
+    );
+  }
+
+  Future<List<String>> getStorageLocations() async {
+    final rows = await getAllData(DatabaseConstants.storagePathsTableName);
+    return [for (final row in rows) row['name'] as String];
+  }
+
+  Future<void> updatePlayedSongsMaxAmount(int value) async {
+    await updateDataByName(
+      DatabaseConstants.settingsTableName,
+      DatabaseConstants.playedSongsMaxAmountTableValueName,
+      {'value': value},
+    );
+  }
+
+  Future<void> saveSettingsSnapshot(SettingsSnapshot snapshot) async {
+    await updatePlayedSongsMaxAmount(snapshot.playedSongsMaxAmount);
+    await cleanTable(DatabaseConstants.storagePathsTableName);
+    await insertData(
+      DatabaseConstants.storagePathsTableName,
+      [
+        for (final path in snapshot.storageLocations) {'name': path}
+      ],
+    );
   }
 
   Future<int> createPlaylist(String playlistName) async {

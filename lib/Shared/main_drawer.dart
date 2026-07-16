@@ -3,8 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/playlist_manager.dart';
 import 'package:strayker_music/Constants/constants.dart';
+import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/ViewModels/playlist_view_model.dart';
+import 'package:strayker_music/ViewModels/settings_view_model.dart';
 import 'package:strayker_music/Widgets/settings.dart';
 
 class MainDrawer extends StatefulWidget {
@@ -16,20 +20,12 @@ class MainDrawer extends StatefulWidget {
 
 class _MainDrawer extends State<MainDrawer> {
   late final PackageInfo _packageInfo;
-  late final PlaylistManager _playlistManager;
-  List<String> _playlists = [];
 
   @override
   void initState() {
     PackageInfo.fromPlatform().then((info) {
       _packageInfo = info;
     });
-    _playlistManager = context.read<PlaylistManager>();
-    _playlistManager.loadAvailablePlaylists().then((_) => {
-          setState(() {
-            _playlists = _playlistManager.availablePlaylists;
-          })
-        });
     super.initState();
   }
 
@@ -68,6 +64,8 @@ class _MainDrawer extends State<MainDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final playlistViewModel = context.watch<PlaylistViewModel>();
+
     return Drawer(
       child: Column(
         children: [
@@ -86,31 +84,45 @@ class _MainDrawer extends State<MainDrawer> {
             ),
           ),
           Expanded(
-              child: ListenableBuilder(
-            listenable: context.read<PlaylistManager>(),
-            builder: (BuildContext ctx, Widget? child) {
-              return ListView.builder(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  itemCount: _playlists.length,
-                  itemBuilder: (ctx, index) {
-                    return ListTile(
-                      title: Text(_playlists[index]),
-                      onTap: () async {
-                        if (ctx.mounted) {
-                          Navigator.of(ctx).pop();
-                          await _playlistManager
-                              .switchToPlaylist(_playlists[index]);
-                        }
-                      },
-                    );
-                  });
-            },
-          )),
+            child: ListView.builder(
+              padding: const EdgeInsets.only(right: 16.0),
+              itemCount: playlistViewModel.availablePlaylists.length,
+              itemBuilder: (ctx, index) {
+                final playlistName =
+                    playlistViewModel.availablePlaylists[index];
+                return ListTile(
+                  title: Text(playlistName),
+                  onTap: () async {
+                    if (ctx.mounted) {
+                      Navigator.of(ctx).pop();
+                      await playlistViewModel.switchPlaylist(playlistName);
+                    }
+                  },
+                );
+              },
+            ),
+          ),
           ListTile(
             title: const Text("Settings"),
             onTap: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SettingsView()));
+              final databaseHelper = context.read<DatabaseHelper>();
+              final playlistManager = context.read<PlaylistManager>();
+              final loadedSongCount = context.read<List<MusicFile>>().length;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  // Route-scoped: the provider disposes unsaved settings state
+                  // when the settings route is removed.
+                  builder: (_) => ChangeNotifierProvider(
+                    create: (_) => SettingsViewModel(
+                      databaseHelper: databaseHelper,
+                      playlistManager: playlistManager,
+                      loadedSongCount: loadedSongCount,
+                    )..load(),
+                    child: const SettingsView(),
+                  ),
+                ),
+              );
             },
           ),
           ListTile(

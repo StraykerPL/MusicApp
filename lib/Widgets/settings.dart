@@ -1,16 +1,13 @@
 import 'dart:io';
 
+import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
-import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:strayker_music/Shared/input_security.dart';
 import 'package:strayker_music/Shared/storage_path_policy.dart';
-import 'package:filesystem_picker/filesystem_picker.dart';
+import 'package:strayker_music/ViewModels/settings_view_model.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -25,211 +22,133 @@ class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _newPlaylistNameController =
       TextEditingController();
 
-  int _playedSongsMaxAmount = 0;
-  List<String> _soundStorageLocations = [];
-  String? _currentlySelectedStoragePath;
-  List<Map<String, dynamic>> _playlists = [];
-  String? _currentlySelectedPlaylist;
+  SettingsViewModel? _viewModel;
 
-  int get _playedSongsMaxAllowed {
-    final loadedSongsAmount = context.read<List<MusicFile>>().length;
-
-    return loadedSongsAmount > 1 ? loadedSongsAmount - 1 : 0;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final viewModel = context.read<SettingsViewModel>();
+    if (_viewModel != viewModel) {
+      _viewModel?.removeListener(_syncPlayedSongsInput);
+      _viewModel = viewModel;
+      _viewModel!.addListener(_syncPlayedSongsInput);
+      _syncPlayedSongsInput();
+    }
   }
 
-  int _clampPlayedSongsMaxAmount(int value) {
-    return value.clamp(0, _playedSongsMaxAllowed);
-  }
-
-  void _setPlayedSongsMaxAmountInput(int value) {
-    _playedSongsMaxAmount = _clampPlayedSongsMaxAmount(value);
+  void _syncPlayedSongsInput() {
+    final text = _viewModel!.playedSongsMaxAmountText;
+    if (_playedSongsMaxAmountInputController.text == text) {
+      return;
+    }
     _playedSongsMaxAmountInputController.value =
         _playedSongsMaxAmountInputController.value.copyWith(
-      text: _playedSongsMaxAmount.toString(),
-      selection: TextSelection.collapsed(
-        offset: _playedSongsMaxAmount.toString().length,
-      ),
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange.empty,
     );
   }
 
-  Future<void> saveSettings() async {
-    final dbContext = context.read<DatabaseHelper>();
-    _playedSongsMaxAmount = _clampPlayedSongsMaxAmount(_playedSongsMaxAmount);
-    await dbContext.updateDataByName(
-        DatabaseConstants.settingsTableName,
-        DatabaseConstants.playedSongsMaxAmountTableValueName,
-        {"value": _playedSongsMaxAmount});
-
-    List<Map<String, dynamic>> sumUpData = [];
-    for (var storagePath in _soundStorageLocations) {
-      sumUpData.add({"name": storagePath});
-    }
-
-    await dbContext.cleanTable(DatabaseConstants.storagePathsTableName);
-    await dbContext.insertData(
-        DatabaseConstants.storagePathsTableName, sumUpData);
-  }
-
-  Future<void> loadSettings() async {
-    final dbContext = context.read<DatabaseHelper>();
-    final playlistManager = context.read<PlaylistManager>();
-
-    var settingsRawData =
-        await dbContext.getAllData(DatabaseConstants.settingsTableName);
-    for (var row in settingsRawData) {
-      if (row["name"] == DatabaseConstants.playedSongsMaxAmountTableValueName) {
-        final savedPlayedSongsMaxAmount = int.parse(row["value"]);
-        _setPlayedSongsMaxAmountInput(savedPlayedSongsMaxAmount);
-        if (_playedSongsMaxAmount != savedPlayedSongsMaxAmount) {
-          await dbContext.updateDataByName(
-              DatabaseConstants.settingsTableName,
-              DatabaseConstants.playedSongsMaxAmountTableValueName,
-              {"value": _playedSongsMaxAmount});
-        }
-      }
-    }
-
-    var storageLocationsRawData =
-        await dbContext.getAllData(DatabaseConstants.storagePathsTableName);
-    for (final {"name": name as String} in storageLocationsRawData) {
-      if (!_soundStorageLocations.contains(name)) {
-        setState(() {
-          _soundStorageLocations.add(name);
-        });
-      }
-    }
-
-    _playlists = await playlistManager.getPlaylists();
-  }
-
-  void setDefualtValues() {
-    _playedSongsMaxAmount = DatabaseConstants.playedSongsMaxAmountDefault;
-    _soundStorageLocations = DatabaseConstants.soundStorageLocationsDefault;
-
-    saveSettings();
-  }
-
-  Future<void> createPlaylist() async {
-    if (_newPlaylistNameController.text.trim().isEmpty) {
+  Future<void> _createPlaylist() async {
+    final result = await _viewModel!.createPlaylist(
+      _newPlaylistNameController.text,
+    );
+    if (!mounted) {
       return;
     }
-
-    final playlistName = _newPlaylistNameController.text.trim();
-    final validationError = InputSecurity.getValidationError(playlistName);
-    if (validationError != null) {
-      _showErrorDialog(validationError);
-      return;
-    }
-
-    // Check if playlist already exists
-    if (_playlists.any((playlist) => playlist['name'] == playlistName)) {
-      _showErrorDialog('Playlist "$playlistName" already exists!');
-      return;
-    }
-
-    try {
-      final playlistManager = context.read<PlaylistManager>();
-      await playlistManager.createPlaylist(playlistName);
+    if (result is SettingsCommandSuccess) {
       _newPlaylistNameController.clear();
-      await loadSettings();
-      setState(() {});
-    } catch (e) {
-      _showErrorDialog('Failed to create playlist: $e');
+    } else if (result is SettingsCommandFailure) {
+      _showErrorDialog(result.message);
     }
   }
 
-  Future<void> deletePlaylist() async {
-    if (_currentlySelectedPlaylist == null) {
-      return;
+  Future<void> _deletePlaylist() async {
+    final result = await _viewModel!.deleteSelectedPlaylist();
+    if (mounted && result is SettingsCommandFailure) {
+      _showErrorDialog(result.message);
     }
+  }
 
-    final playlist = _playlists.firstWhere(
-      (p) => p['name'] == _currentlySelectedPlaylist,
-      orElse: () => {'id': -1, 'name': ''},
+  Future<void> _save() async {
+    _viewModel!.setPlayedSongsMaxAmountFromText(
+      _playedSongsMaxAmountInputController.text,
     );
-
-    if (playlist['id'] == -1) {
-      return;
+    final result = await _viewModel!.save();
+    if (mounted && result is SettingsCommandFailure) {
+      _showErrorDialog(result.message);
     }
+  }
 
-    try {
-      final playlistManager = context.read<PlaylistManager>();
-      await playlistManager.deletePlaylist(playlist['id']);
-      _currentlySelectedPlaylist = null;
-      await loadSettings();
-      setState(() {});
-    } catch (e) {
-      _showErrorDialog('Failed to delete playlist: $e');
+  Future<void> _restoreDefaults() async {
+    final result = await _viewModel!.restoreDefaults();
+    if (mounted && result is SettingsCommandFailure) {
+      _showErrorDialog(result.message);
     }
   }
 
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
   @override
-  void initState() {
-    loadSettings();
-    super.initState();
-  }
-
-  @override
   void dispose() {
+    _viewModel?.removeListener(_syncPlayedSongsInput);
     _playedSongsMaxAmountInputController.dispose();
     _newPlaylistNameController.dispose();
     super.dispose();
   }
 
-  ListView createPathsListWidget(BuildContext context) {
+  Widget _createPathsListWidget(
+    BuildContext context,
+    SettingsViewModel viewModel,
+  ) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemCount: _soundStorageLocations.length,
+      itemCount: viewModel.storageLocations.length,
       itemBuilder: (context, index) {
+        final storageLocation = viewModel.storageLocations[index];
         return ListTile(
           title: Text(
-            _soundStorageLocations[index],
+            storageLocation,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing:
-              _currentlySelectedStoragePath == _soundStorageLocations[index]
-                  ? getDefaultIconWidget(context, Icons.check)
-                  : null,
-          onTap: () => {
-            setState(() {
-              _currentlySelectedStoragePath = _soundStorageLocations[index];
-            })
-          },
+          trailing: viewModel.selectedStoragePath == storageLocation
+              ? getDefaultIconWidget(context, Icons.check)
+              : null,
+          onTap: () => viewModel.selectStoragePath(storageLocation),
         );
       },
     );
   }
 
-  ListView createPlaylistsListWidget(BuildContext context) {
+  Widget _createPlaylistsListWidget(
+    BuildContext context,
+    SettingsViewModel viewModel,
+  ) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemCount: _playlists.length,
+      itemCount: viewModel.playlists.length,
       itemBuilder: (context, index) {
-        final playlist = _playlists[index];
-        final playlistName = playlist['name'] as String;
-        final isAllFiles = playlistName == "All Files";
+        final playlist = viewModel.playlists[index];
+        final playlistName = playlist.name;
+        final isAllFiles = playlistName == 'All Files';
 
         return ListTile(
           title: Text(
@@ -238,16 +157,11 @@ class _SettingsViewState extends State<SettingsView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: _currentlySelectedPlaylist == playlistName
+          trailing: viewModel.selectedPlaylistName == playlistName
               ? getDefaultIconWidget(context, Icons.check)
               : null,
-          onTap: isAllFiles
-              ? null
-              : () => {
-                    setState(() {
-                      _currentlySelectedPlaylist = playlistName;
-                    })
-                  },
+          onTap:
+              isAllFiles ? null : () => viewModel.selectPlaylist(playlistName),
         );
       },
     );
@@ -255,24 +169,27 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<SettingsViewModel>();
+
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          title: const Text("Settings"),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: SingleChildScrollView(
-              child: Column(children: [
-            const Text(
-              "Amount of repetitive songs prevention queue\n(zero means this feature is disabled):",
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(
-              width: 50,
-              child: TextField(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: const Text('Settings'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const Text(
+                'Amount of repetitive songs prevention queue\n(zero means this feature is disabled):',
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(
+                width: 50,
+                child: TextField(
                   controller: _playedSongsMaxAmountInputController,
-                  onTapOutside: (event) {
+                  onTapOutside: (_) {
                     FocusManager.instance.primaryFocus?.unfocus();
                   },
                   inputFormatters: [
@@ -280,182 +197,175 @@ class _SettingsViewState extends State<SettingsView> {
                     const SecureTextInputFormatter(),
                     LengthLimitingTextInputFormatter(6),
                   ],
-                  onChanged: (value) {
-                    final newValue = int.tryParse(value) ?? 0;
-                    final clampedValue = _clampPlayedSongsMaxAmount(newValue);
-                    if (clampedValue != newValue) {
-                      _setPlayedSongsMaxAmountInput(clampedValue);
-                    }
-                  },
-                  keyboardType: TextInputType.number),
-            ),
-            const Text("Storage paths to look for sound files:"),
-            SizedBox(
-              width: double.infinity,
-              height: 300,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      ElevatedButton(
+                  onChanged: viewModel.setPlayedSongsMaxAmountFromText,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const Text('Storage paths to look for sound files:'),
+              SizedBox(
+                width: double.infinity,
+                height: 300,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        ElevatedButton(
                           onPressed: () async {
-                            var ok = await FilesystemPicker.open(
+                            final selectedPath = await FilesystemPicker.open(
                               title: 'Folder Select',
                               context: context,
                               rootDirectory: Directory.fromUri(
-                                  Uri(path: "/storage/emulated/0")),
+                                Uri(path: '/storage/emulated/0'),
+                              ),
                               fsType: FilesystemType.folder,
                               pickText: 'Add selected folder',
                               fileTileSelectMode: FileTileSelectMode.wholeTile,
                               itemFilter: (_, path, __) =>
                                   StoragePathPolicy.canDisplayInPicker(path),
                             );
-                            if (ok != null) {
-                              final validationError =
-                                  StoragePathPolicy.getValidationError(ok);
-                              if (validationError != null) {
-                                _showErrorDialog(validationError);
-                                return;
-                              }
-
-                              setState(() {
-                                if (!_soundStorageLocations.contains(ok)) {
-                                  _soundStorageLocations.add(ok);
-                                }
-                              });
+                            if (selectedPath == null || !mounted) {
+                              return;
+                            }
+                            final result =
+                                viewModel.addStoragePath(selectedPath);
+                            if (result is SettingsCommandFailure) {
+                              _showErrorDialog(result.message);
                             }
                           },
-                          child: Text("+",
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .displayLarge
-                                      ?.color))),
-                      ElevatedButton(
-                          onPressed: () => {
-                                setState(() {
-                                  _soundStorageLocations
-                                      .remove(_currentlySelectedStoragePath);
-                                }),
-                                _currentlySelectedStoragePath = null
-                              },
-                          child: Text("-",
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .displayLarge
-                                      ?.color))),
-                    ],
-                  ),
-                  SingleChildScrollView(
-                    child: createPathsListWidget(context),
-                  )
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text("Playlist Management:"),
-            SizedBox(
-              width: double.infinity,
-              height: 200,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 200,
-                        child: TextField(
-                          controller: _newPlaylistNameController,
-                          decoration: const InputDecoration(
-                            hintText: "Enter playlist name",
-                            border: OutlineInputBorder(),
+                          child: Text(
+                            '+',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .displayLarge
+                                  ?.color,
+                            ),
                           ),
-                          inputFormatters: [
-                            const SecureTextInputFormatter(),
-                            LengthLimitingTextInputFormatter(
-                                InputSecurity.maxTextLength),
-                          ],
-                          onSubmitted: (_) => createPlaylist(),
                         ),
-                      ),
-                      ElevatedButton(
-                          onPressed: createPlaylist,
-                          child: Text("Create",
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .displayLarge
-                                      ?.color))),
-                      ElevatedButton(
-                          onPressed: _currentlySelectedPlaylist != null &&
-                                  _currentlySelectedPlaylist != "All Files"
-                              ? deletePlaylist
-                              : null,
-                          child: Text("Delete",
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .displayLarge
-                                      ?.color))),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: createPlaylistsListWidget(context),
+                        ElevatedButton(
+                          onPressed: viewModel.removeSelectedStoragePath,
+                          child: Text(
+                            '-',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .displayLarge
+                                  ?.color,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  )
+                    SingleChildScrollView(
+                      child: _createPathsListWidget(context, viewModel),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('Playlist Management:'),
+              SizedBox(
+                width: double.infinity,
+                height: 200,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 200,
+                          child: TextField(
+                            controller: _newPlaylistNameController,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter playlist name',
+                              border: OutlineInputBorder(),
+                            ),
+                            inputFormatters: [
+                              const SecureTextInputFormatter(),
+                              LengthLimitingTextInputFormatter(
+                                InputSecurity.maxTextLength,
+                              ),
+                            ],
+                            onSubmitted: (_) => _createPlaylist(),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: _createPlaylist,
+                          child: Text(
+                            'Create',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .displayLarge
+                                  ?.color,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: viewModel.selectedPlaylistName != null &&
+                                  viewModel.selectedPlaylistName != 'All Files'
+                              ? _deletePlaylist
+                              : null,
+                          child: Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .displayLarge
+                                  ?.color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: _createPlaylistsListWidget(context, viewModel),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: viewModel.isPersistenceInProgress ? null : _save,
+                    child: Text(
+                      'Save',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.displayLarge?.color,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: viewModel.isPersistenceInProgress
+                        ? null
+                        : () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.displayLarge?.color,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: viewModel.isPersistenceInProgress
+                        ? null
+                        : _restoreDefaults,
+                    child: Text(
+                      'Load Default',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.displayLarge?.color,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                    onPressed: () {
-                      _playedSongsMaxAmount = int.tryParse(
-                            _playedSongsMaxAmountInputController.value.text,
-                          ) ??
-                          0;
-                      _setPlayedSongsMaxAmountInput(_playedSongsMaxAmount);
-                      saveSettings();
-                    },
-                    child: Text("Save",
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .textTheme
-                                .displayLarge
-                                ?.color))),
-                ElevatedButton(
-                    onPressed: () {
-                      loadSettings();
-                      setState(() {
-                        _currentlySelectedStoragePath = null;
-                      });
-                      Navigator.pop(context);
-                    },
-                    child: Text("Cancel",
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .textTheme
-                                .displayLarge
-                                ?.color))),
-                ElevatedButton(
-                    onPressed: () {
-                      setDefualtValues();
-                      setState(() {
-                        _setPlayedSongsMaxAmountInput(_playedSongsMaxAmount);
-                      });
-                    },
-                    child: Text("Load Default",
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .textTheme
-                                .displayLarge
-                                ?.color)))
-              ],
-            )
-          ])),
-        ));
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

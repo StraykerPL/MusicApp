@@ -6,12 +6,26 @@ import 'package:mocktail/mocktail.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/sound_collection_manager.dart';
 import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Models/settings_snapshot.dart';
 
 import '../helpers/fake_random.dart';
 import '../helpers/music_file_test_helper.dart';
 import '../mocks/fake_database.dart';
 
 class MockSoundPlayer extends Mock implements SoundPlayer {}
+
+class TrackingDatabaseHelper extends DatabaseHelper {
+  int getSettingsSnapshotCalls = 0;
+
+  @override
+  Future<SettingsSnapshot> getSettingsSnapshot() async {
+    getSettingsSnapshotCalls++;
+    return SettingsSnapshot(
+      playedSongsMaxAmount: 0,
+      storageLocations: [],
+    );
+  }
+}
 
 void main() {
   group('SoundCollectionManager', () {
@@ -54,6 +68,34 @@ void main() {
 
       expect(result, songs[1]);
       verify(() => soundPlayer.playNewSong(songs[1])).called(1);
+    });
+
+    test('uses the injected database helper for shuffle settings', () async {
+      final trackingDatabaseHelper = TrackingDatabaseHelper();
+      final manager = SoundCollectionManager(
+        player: soundPlayer,
+        databaseHelper: trackingDatabaseHelper,
+        random: FakeRandom([0]),
+      );
+
+      await manager.playRandomMusic([
+        createSong('/music/alpha.mp3'),
+        createSong('/music/beta.mp3'),
+      ]);
+
+      expect(trackingDatabaseHelper.getSettingsSnapshotCalls, 1);
+    });
+
+    test('playRandomMusic with no songs is a no-op', () async {
+      final manager = SoundCollectionManager(
+        player: soundPlayer,
+        databaseHelper: databaseHelper,
+      );
+
+      final result = await manager.playRandomMusic(const []);
+
+      expect(result, isNull);
+      verifyNever(() => soundPlayer.playNewSong(any()));
     });
 
     test(

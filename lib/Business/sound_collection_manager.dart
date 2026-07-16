@@ -5,30 +5,31 @@ import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Business/default_audio_handler.dart';
 import 'package:strayker_music/Business/sound_player.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
 final class SoundCollectionManager {
-  late final SoundPlayer _soundPlayer;
-  late final DatabaseHelper _databaseHelper;
-  late final Random _random;
+  SoundCollectionManager({
+    required SoundPlayer player,
+    required DatabaseHelper databaseHelper,
+    Random? random,
+  })  : _soundPlayer = player,
+        _databaseHelper = databaseHelper,
+        _random = random ?? Random();
+
+  final SoundPlayer _soundPlayer;
+  final DatabaseHelper _databaseHelper;
+  final Random _random;
   final List<MusicFile> _playedSongs = [];
   int _playedSongsMaxAmount = 0;
 
   StreamSubscription<PlaybackState> get getPlaybackStateSubscription =>
       _soundPlayer.getPlaybackStateSubscription();
 
-  SoundCollectionManager({
-    required SoundPlayer player,
-    DatabaseHelper? databaseHelper,
-    Random? random,
-  }) {
-    _soundPlayer = player;
-    _databaseHelper = databaseHelper ?? DatabaseHelper();
-    _random = random ?? Random();
-  }
+  Future<MusicFile?> playRandomMusic(List<MusicFile> availableSongs) async {
+    if (availableSongs.isEmpty) {
+      return null;
+    }
 
-  Future<MusicFile> playRandomMusic(List<MusicFile> availableSongs) async {
     MusicFile randomMusicFile = _getRandomMusicFile(availableSongs);
     _playedSongsMaxAmount = await _getPlayedSongsMaxAmount(availableSongs);
 
@@ -90,27 +91,16 @@ final class SoundCollectionManager {
   }
 
   Future<int> _getPlayedSongsMaxAmount(List<MusicFile> availableSongs) async {
-    final settings =
-        await _databaseHelper.getAllData(DatabaseConstants.settingsTableName);
-    for (final {"name": settingName, "value": settingValue} in settings) {
-      if (settingName == DatabaseConstants.playedSongsMaxAmountTableValueName) {
-        final savedMaxAmount = int.parse(settingValue);
-        final maxAllowedAmount = _getPlayedSongsMaxAllowed(availableSongs);
-        final clampedMaxAmount = savedMaxAmount.clamp(0, maxAllowedAmount);
+    final snapshot = await _databaseHelper.getSettingsSnapshot();
+    final savedMaxAmount = snapshot.playedSongsMaxAmount;
+    final maxAllowedAmount = _getPlayedSongsMaxAllowed(availableSongs);
+    final clampedMaxAmount = savedMaxAmount.clamp(0, maxAllowedAmount);
 
-        if (clampedMaxAmount != savedMaxAmount) {
-          await _databaseHelper.updateDataByName(
-            DatabaseConstants.settingsTableName,
-            DatabaseConstants.playedSongsMaxAmountTableValueName,
-            {"value": clampedMaxAmount.toString()},
-          );
-        }
-
-        return clampedMaxAmount;
-      }
+    if (clampedMaxAmount != savedMaxAmount) {
+      await _databaseHelper.updatePlayedSongsMaxAmount(clampedMaxAmount);
     }
 
-    return 0;
+    return clampedMaxAmount;
   }
 
   int _getPlayedSongsMaxAllowed(List<MusicFile> availableSongs) {

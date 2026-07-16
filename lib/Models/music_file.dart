@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:strayker_music/Constants/constants.dart';
+import 'package:uuid/uuid.dart';
 
 interface class MusicFile {
   late MediaItem _mediaItem;
@@ -11,7 +12,7 @@ interface class MusicFile {
   set filePath(String value) => {
         _filePathLocal = value,
         _nameLocal = _getFileName(value),
-        _mediaItem = MediaItem(id: "1", title: _nameLocal)
+        _mediaItem = MediaItem(id: const Uuid().v4(), title: _nameLocal)
       };
   MediaItem get mediaItemMetaData => _mediaItem;
 

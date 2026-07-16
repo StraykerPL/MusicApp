@@ -9,6 +9,7 @@ import 'package:strayker_music/Business/sound_files_reader.dart';
 import 'package:strayker_music/Business/sound_player.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 import 'package:strayker_music/Widgets/playlist_view.dart';
 
 Future<void> main() async {
@@ -31,13 +32,22 @@ Future<void> main() async {
         Provider<SoundPlayer>(
             create: (_) => SoundPlayer(handler: audioHandler)),
         Provider<DatabaseHelper>.value(value: dbHelper),
-        ListenableProvider(
+        ChangeNotifierProvider(
             create: (ctx) => PlaylistManager(
                 databaseHelper: ctx.read<DatabaseHelper>(),
                 allSongs: ctx.read<List<MusicFile>>())),
         Provider<SoundCollectionManager>(
-            create: (ctx) =>
-                SoundCollectionManager(player: ctx.read<SoundPlayer>())),
+          create: (ctx) => SoundCollectionManager(
+            player: ctx.read<SoundPlayer>(),
+            databaseHelper: ctx.read<DatabaseHelper>(),
+          ),
+        ),
+        ChangeNotifierProvider<PlaylistViewModel>(
+          create: (ctx) => PlaylistViewModel(
+            playlistManager: ctx.read<PlaylistManager>(),
+            soundCollectionManager: ctx.read<SoundCollectionManager>(),
+          )..initialize(),
+        ),
       ],
       child: const MyApp(),
     ),
