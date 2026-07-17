@@ -11,6 +11,7 @@ class HandlerHarness {
     required this.player,
     required this.session,
     required this.playbackEvents,
+    required this.playingStates,
     required this.interruptionEvents,
     required this.noisyEvents,
     required this.deviceEvents,
@@ -20,6 +21,7 @@ class HandlerHarness {
   final MockAudioPlayer player;
   final MockAudioSession session;
   final StreamController<PlaybackEvent> playbackEvents;
+  final StreamController<bool> playingStates;
   final StreamController<AudioInterruptionEvent> interruptionEvents;
   final StreamController<void> noisyEvents;
   final StreamController<AudioDevicesChangedEvent> deviceEvents;
@@ -34,6 +36,7 @@ class HandlerHarness {
     final player = MockAudioPlayer();
     final session = MockAudioSession();
     final playbackEvents = StreamController<PlaybackEvent>.broadcast();
+    final playingStates = StreamController<bool>.broadcast();
     final interruptionEvents =
         StreamController<AudioInterruptionEvent>.broadcast();
     final noisyEvents = StreamController<void>.broadcast();
@@ -41,6 +44,7 @@ class HandlerHarness {
 
     when(() => player.playbackEventStream)
         .thenAnswer((_) => playbackEvents.stream);
+    when(() => player.playingStream).thenAnswer((_) => playingStates.stream);
     when(() => player.playing).thenReturn(isPlaying);
     when(() => player.processingState).thenReturn(processingState);
     when(() => player.loopMode).thenReturn(loopMode);
@@ -74,6 +78,7 @@ class HandlerHarness {
       player: player,
       session: session,
       playbackEvents: playbackEvents,
+      playingStates: playingStates,
       interruptionEvents: interruptionEvents,
       noisyEvents: noisyEvents,
       deviceEvents: deviceEvents,
@@ -87,6 +92,7 @@ class HandlerHarness {
 
   Future<void> closeControllers() async {
     await playbackEvents.close();
+    await playingStates.close();
     await interruptionEvents.close();
     await noisyEvents.close();
     await deviceEvents.close();

@@ -21,9 +21,9 @@ final class PlaylistViewModel extends ChangeNotifier {
 
   StreamSubscription<PlaybackState>? _playbackSubscription;
   MusicFile? _currentSong;
-  bool _isPlaying = false;
   bool _isSearchVisible = false;
   bool _isLoopModeOn = false;
+  bool _isPlaybackAvailable = true;
   String _searchQuery = '';
   bool _initialized = false;
   bool _disposed = false;
@@ -40,12 +40,16 @@ final class PlaylistViewModel extends ChangeNotifier {
         ),
       );
   MusicFile? get currentSong => _currentSong;
-  bool get isPlaying => _isPlaying;
+  Stream<bool> get playingStream => _soundCollectionManager.playingStream;
   bool get isSearchVisible => _isSearchVisible;
   bool get isLoopModeOn => _isLoopModeOn;
   String get searchQuery => _searchQuery;
-  bool get canControlCurrentSong => _isPlaying || _currentSong != null;
-  bool get canShuffle => songs.isNotEmpty;
+  bool get isPlaybackAvailable => _isPlaybackAvailable;
+  bool get canControlCurrentSong =>
+      _isPlaybackAvailable &&
+      _currentSong != null &&
+      songs.contains(_currentSong);
+  bool get canShuffle => _isPlaybackAvailable && songs.isNotEmpty;
   bool get canRemoveSongs => currentPlaylistName != allFilesPlaylistName;
   bool get showsLoopControl => currentPlaylistName != allFilesPlaylistName;
 
@@ -81,35 +85,76 @@ final class PlaylistViewModel extends ChangeNotifier {
   }
 
   Future<void> selectSong(MusicFile song) async {
+    if (!_isPlaybackAvailable || !songs.contains(song)) {
+      return;
+    }
+
     _currentSong = song;
     _notifyListeners();
     await _soundCollectionManager.selectAndPlaySong(song);
   }
 
   Future<void> shuffle() async {
-    final song = await _soundCollectionManager.playRandomMusic(
-      _playlistManager.currentPlaylistSongs,
-    );
-    if (song == null || _disposed) {
+    if (!_isPlaybackAvailable) {
       return;
     }
+
+    final song = await _soundCollectionManager.getRandomMusic(
+      _playlistManager.currentPlaylistSongs,
+    );
+
+    if (song == null || _disposed || !_isPlaybackAvailable) {
+      return;
+    }
+
     _currentSong = song;
-    _isPlaying = true;
     _notifyListeners();
+
+    await _soundCollectionManager.selectAndPlaySong(song);
   }
 
   Future<void> resumeOrPause() async {
+    if (!canControlCurrentSong) {
+      return;
+    }
+
     await _soundCollectionManager.resumeOrPauseSong();
   }
 
   Future<void> toggleLoopMode() async {
+    if (!_isPlaybackAvailable) {
+      return;
+    }
+
     _isLoopModeOn = !_isLoopModeOn;
     _notifyListeners();
     await _soundCollectionManager.setLoopMode(_isLoopModeOn);
   }
 
   Future<void> switchPlaylist(String name) async {
-    await _playlistManager.switchToPlaylist(name);
+    await _stopAndResetPlayback();
+
+    try {
+      await _playlistManager.switchToPlaylist(name);
+    } finally {
+      _isPlaybackAvailable = true;
+      _applyLoopModeForCurrentPlaylist();
+      _notifyListeners();
+    }
+  }
+
+  Future<void> enterSettings() async {
+    await _stopAndResetPlayback();
+  }
+
+  void leaveSettings() {
+    if (_disposed) {
+      return;
+    }
+
+    _isPlaybackAvailable = true;
+    _applyLoopModeForCurrentPlaylist();
+    _notifyListeners();
   }
 
   Future<List<String>> getNamedPlaylistNames() async {
@@ -141,7 +186,11 @@ final class PlaylistViewModel extends ChangeNotifier {
 
   Future<void> playNextSongFromNotification() async {
     final currentSong = _currentSong;
-    if (currentSong == null || songs.isEmpty || _disposed) {
+    if (!_isPlaybackAvailable ||
+        currentSong == null ||
+        !songs.contains(currentSong) ||
+        songs.isEmpty ||
+        _disposed) {
       return;
     }
 
@@ -152,7 +201,11 @@ final class PlaylistViewModel extends ChangeNotifier {
 
   Future<void> playPreviousSongFromNotification() async {
     final currentSong = _currentSong;
-    if (currentSong == null || songs.isEmpty || _disposed) {
+    if (!_isPlaybackAvailable ||
+        currentSong == null ||
+        !songs.contains(currentSong) ||
+        songs.isEmpty ||
+        _disposed) {
       return;
     }
 
@@ -162,7 +215,7 @@ final class PlaylistViewModel extends ChangeNotifier {
   }
 
   Future<void> _playSongFromNotification(MusicFile song) async {
-    if (_disposed) {
+    if (_disposed || !_isPlaybackAvailable || !songs.contains(song)) {
       return;
     }
 
@@ -172,6 +225,10 @@ final class PlaylistViewModel extends ChangeNotifier {
   }
 
   Future<void> _onPlaybackStateChanged(PlaybackState value) async {
+    if (!_isPlaybackAvailable || _disposed) {
+      return;
+    }
+
     if (currentPlaylistName != allFilesPlaylistName &&
         value.processingState == AudioProcessingState.completed) {
       final currentSong = _currentSong;
@@ -184,17 +241,27 @@ final class PlaylistViewModel extends ChangeNotifier {
       }
     }
 
-    _isPlaying = value.playing;
     _notifyListeners();
   }
 
   void _onPlaylistChanged() {
-    if (currentPlaylistName == allFilesPlaylistName) {
-      unawaited(_soundCollectionManager.setLoopMode(true));
-    } else {
-      unawaited(_soundCollectionManager.setLoopMode(_isLoopModeOn));
+    if (_isPlaybackAvailable) {
+      _applyLoopModeForCurrentPlaylist();
     }
     _notifyListeners();
+  }
+
+  Future<void> _stopAndResetPlayback() async {
+    _isPlaybackAvailable = false;
+    _currentSong = null;
+    _notifyListeners();
+    await _soundCollectionManager.stopPlayback();
+  }
+
+  void _applyLoopModeForCurrentPlaylist() {
+    final loopMode =
+        currentPlaylistName == allFilesPlaylistName ? true : _isLoopModeOn;
+    unawaited(_soundCollectionManager.setLoopMode(loopMode));
   }
 
   void _notifyListeners() {

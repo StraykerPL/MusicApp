@@ -24,8 +24,9 @@ final class SoundCollectionManager {
 
   StreamSubscription<PlaybackState> get getPlaybackStateSubscription =>
       _soundPlayer.getPlaybackStateSubscription();
+  Stream<bool> get playingStream => _soundPlayer.playingStream;
 
-  Future<MusicFile?> playRandomMusic(List<MusicFile> availableSongs) async {
+  Future<MusicFile?> getRandomMusic(List<MusicFile> availableSongs) async {
     if (availableSongs.isEmpty) {
       return null;
     }
@@ -34,8 +35,6 @@ final class SoundCollectionManager {
     _playedSongsMaxAmount = await _getPlayedSongsMaxAmount(availableSongs);
 
     if (_playedSongsMaxAmount == 0 || availableSongs.length == 1) {
-      await _soundPlayer.playNewSong(randomMusicFile);
-
       return randomMusicFile;
     }
 
@@ -50,13 +49,11 @@ final class SoundCollectionManager {
 
     if (_playedSongs.length < _playedSongsMaxAmount) {
       _playedSongs.add(randomMusicFile);
-      await _soundPlayer.playNewSong(randomMusicFile);
 
       return randomMusicFile;
     } else if (_playedSongs.length >= _playedSongsMaxAmount) {
       _playedSongs.removeAt(0);
       _playedSongs.add(randomMusicFile);
-      await _soundPlayer.playNewSong(randomMusicFile);
 
       return randomMusicFile;
     }
@@ -70,6 +67,10 @@ final class SoundCollectionManager {
 
   Future<void> resumeOrPauseSong() async {
     await _soundPlayer.resumeOrPauseSong();
+  }
+
+  Future<void> stopPlayback() async {
+    await _soundPlayer.stop();
   }
 
   Future<void> setLoopMode(bool enabled) async {

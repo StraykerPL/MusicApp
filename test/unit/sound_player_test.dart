@@ -36,6 +36,18 @@ void main() {
       addTearDown(subscription.cancel);
     });
 
+    test('playingStream exposes audio player playing changes', () async {
+      final states = <bool>[];
+      final subscription = soundPlayer.playingStream.listen(states.add);
+      addTearDown(subscription.cancel);
+
+      handlerHarness.playingStates.add(true);
+      handlerHarness.playingStates.add(false);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(states, [true, false]);
+    });
+
     test('playNewSong loads and starts selected song', () async {
       final song = createSong('/music/alpha.mp3');
 
@@ -78,6 +90,13 @@ void main() {
 
       verify(() => handlerHarness.player.play()).called(1);
       verifyNever(() => handlerHarness.player.pause());
+    });
+
+    test('stop delegates to the audio handler', () async {
+      await soundPlayer.stop();
+
+      verify(() => handlerHarness.player.stop()).called(1);
+      verify(() => handlerHarness.session.setActive(false)).called(1);
     });
 
     test('setLoopMode delegates loop mode flag', () async {

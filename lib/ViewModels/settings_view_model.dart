@@ -156,7 +156,7 @@ final class SettingsViewModel extends ChangeNotifier {
     }
 
     try {
-      await _playlistManager.deletePlaylist(playlist.id);
+      await _playlistManager.deletePlaylistByName(playlist.name);
       _selectedPlaylistName = null;
       await _refreshPlaylists();
       _notifyListeners();

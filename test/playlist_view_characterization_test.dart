@@ -52,6 +52,8 @@ void main() {
     late SoundCollectionManager soundCollectionManager;
     late PlaylistViewModel playlistViewModel;
     late StreamController<PlaybackState> playbackStates;
+    late StreamController<bool> playingStates;
+    late void Function(bool value) emitPlayingState;
     late List<MusicFile> songs;
     NotificationSkipHandler? skipToNext;
     NotificationSkipHandler? skipToPrevious;
@@ -84,13 +86,24 @@ void main() {
         soundCollectionManager: soundCollectionManager,
       );
       playbackStates = StreamController<PlaybackState>.broadcast();
+      var latestPlayingState = false;
+      playingStates = StreamController<bool>.broadcast(
+        onListen: () => playingStates.add(latestPlayingState),
+      );
+      emitPlayingState = (value) {
+        latestPlayingState = value;
+        playingStates.add(value);
+      };
 
       when(() => soundPlayer.getPlaybackStateSubscription()).thenAnswer(
         (_) => playbackStates.stream.listen((_) {}),
       );
+      when(() => soundPlayer.playingStream)
+          .thenAnswer((_) => playingStates.stream);
       when(() => soundPlayer.setLoopMode(any())).thenAnswer((_) async {});
       when(() => soundPlayer.playNewSong(any())).thenAnswer((_) async {});
       when(() => soundPlayer.resumeOrPauseSong()).thenAnswer((_) async {});
+      when(() => soundPlayer.stop()).thenAnswer((_) async {});
       when(
         () => soundPlayer.setNotificationSkipHandlers(
           skipToNext: any(named: 'skipToNext'),
@@ -108,6 +121,7 @@ void main() {
     tearDown(() async {
       playlistViewModel.dispose();
       await playbackStates.close();
+      await playingStates.close();
     });
 
     Future<void> pumpPlaylistView(WidgetTester tester) async {
@@ -235,6 +249,21 @@ void main() {
       verify(() => soundPlayer.playNewSong(songs.last)).called(1);
     });
 
+    testWidgets('player stream keeps notification pause in sync with the UI',
+        (tester) async {
+      await pumpPlaylistView(tester);
+      await tester.tap(find.text('alpha'));
+      await tester.pump();
+
+      emitPlayingState(true);
+      await tester.pump();
+      expect(find.byIcon(Icons.pause), findsOneWidget);
+
+      emitPlayingState(false);
+      await tester.pump();
+      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    });
+
     testWidgets('shuffle is disabled when the current playlist is empty',
         (tester) async {
       await databaseHelper.createPlaylist('Empty');
@@ -281,20 +310,14 @@ void main() {
       await tester.pump();
       expect(find.byType(PlaylistView), findsNothing);
 
-      playbackStates.add(
-        PlaybackState(
-          processingState: AudioProcessingState.ready,
-          playing: true,
-        ),
-      );
+      emitPlayingState(true);
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.swap_horiz));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.byType(PlaylistView), findsOneWidget);
       expect(playlistViewModel.currentSong, playlistViewModel.songs.first);
-      expect(playlistViewModel.isPlaying, isTrue);
       expect(find.byIcon(Icons.pause), findsOneWidget);
       verify(() => soundPlayer.getPlaybackStateSubscription()).called(1);
       verify(

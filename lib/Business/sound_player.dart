@@ -15,6 +15,8 @@ class SoundPlayer {
     return _handler.playbackState.listen((state) {});
   }
 
+  Stream<bool> get playingStream => _handler.playingStream;
+
   Future<void> playNewSong(MusicFile? newSong) async {
     if (newSong != null) {
       await _handler.playNew(newSong.mediaItemMetaData, newSong.filePath);
@@ -23,6 +25,10 @@ class SoundPlayer {
 
   Future<void> resumeOrPauseSong() async {
     await _handler.resumeOrPauseSong();
+  }
+
+  Future<void> stop() async {
+    await _handler.stop();
   }
 
   Future<void> setLoopMode(bool enabled) async {

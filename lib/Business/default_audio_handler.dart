@@ -12,11 +12,13 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
   final AudioSessionProvider _sessionProvider;
   NotificationSkipHandler? _skipToNextHandler;
   NotificationSkipHandler? _skipToPreviousHandler;
+  bool _isPlaybackSessionActive = true;
   late AudioSession _session;
   late StreamSubscription<void> _noisyCheckStream;
   late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
   late StreamSubscription<AudioDevicesChangedEvent> _deviceChangeEventStream;
   bool get isLoopModeOn => _player.loopMode == LoopMode.all;
+  Stream<bool> get playingStream => _player.playingStream;
 
   DefaultAudioHandler({
     AudioPlayer? player,
@@ -67,12 +69,14 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
 
   PlaybackState transformEvent(PlaybackEvent event) {
     return PlaybackState(
-      controls: [
-        _player.playing ? MediaControl.pause : MediaControl.play,
-        MediaControl.stop,
-        MediaControl.skipToPrevious,
-        MediaControl.skipToNext,
-      ],
+      controls: _isPlaybackSessionActive
+          ? [
+              _player.playing ? MediaControl.pause : MediaControl.play,
+              MediaControl.stop,
+              MediaControl.skipToPrevious,
+              MediaControl.skipToNext,
+            ]
+          : const [],
       processingState: const {
         ProcessingState.idle: AudioProcessingState.idle,
         ProcessingState.loading: AudioProcessingState.loading,
@@ -87,22 +91,39 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
   // These overrides are not being used by code,
   // but they are necessary for notification panel's widget to work.
   @override
-  Future<void> play() async => await _player.play();
+  Future<void> play() async {
+    if (_isPlaybackSessionActive) {
+      await _player.play();
+    }
+  }
 
   @override
-  Future<void> pause() async => await _player.pause();
+  Future<void> pause() async {
+    if (_isPlaybackSessionActive) {
+      await _player.pause();
+    }
+  }
 
   @override
-  Future<void> stop() async => await _player.stop();
+  Future<void> stop() async {
+    _isPlaybackSessionActive = false;
+    await _player.stop();
+    await _session.setActive(false);
+    mediaItem.add(null);
+  }
 
   @override
   Future<void> skipToNext() async {
-    await _skipToNextHandler?.call();
+    if (_isPlaybackSessionActive) {
+      await _skipToNextHandler?.call();
+    }
   }
 
   @override
   Future<void> skipToPrevious() async {
-    await _skipToPreviousHandler?.call();
+    if (_isPlaybackSessionActive) {
+      await _skipToPreviousHandler?.call();
+    }
   }
   // End of widget handling code.
 
@@ -116,6 +137,7 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
 
   Future<void> playNew(MediaItem item, String path) async {
     if (await _session.setActive(true)) {
+      _isPlaybackSessionActive = true;
       try {
         mediaItem.add(item);
         await _player.setAudioSource(AudioSource.file(path, tag: item));
@@ -125,6 +147,10 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
   }
 
   Future<void> resumeOrPauseSong() async {
+    if (!_isPlaybackSessionActive) {
+      return;
+    }
+
     if (_player.playing) {
       await _player.pause();
     } else {

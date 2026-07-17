@@ -42,6 +42,7 @@ void main() {
       soundPlayer = MockSoundPlayer();
       when(() => soundPlayer.playNewSong(any())).thenAnswer((_) async {});
       when(() => soundPlayer.resumeOrPauseSong()).thenAnswer((_) async {});
+      when(() => soundPlayer.stop()).thenAnswer((_) async {});
       when(() => soundPlayer.setLoopMode(any())).thenAnswer((_) async {});
       when(() => soundPlayer.getPlaybackStateSubscription())
           .thenAnswer((_) => playbackStateController.stream.listen((_) {}));
@@ -52,7 +53,7 @@ void main() {
       await fakeDatabase.close();
     });
 
-    test('playRandomMusic plays selected song when repeat history is disabled',
+    test('getRandomMusic selects a song when repeat history is disabled',
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
@@ -64,10 +65,9 @@ void main() {
         createSong('/music/beta.mp3'),
       ];
 
-      final result = await manager.playRandomMusic(songs);
+      final result = await manager.getRandomMusic(songs);
 
       expect(result, songs[1]);
-      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
     });
 
     test('uses the injected database helper for shuffle settings', () async {
@@ -78,7 +78,7 @@ void main() {
         random: FakeRandom([0]),
       );
 
-      await manager.playRandomMusic([
+      await manager.getRandomMusic([
         createSong('/music/alpha.mp3'),
         createSong('/music/beta.mp3'),
       ]);
@@ -86,20 +86,20 @@ void main() {
       expect(trackingDatabaseHelper.getSettingsSnapshotCalls, 1);
     });
 
-    test('playRandomMusic with no songs is a no-op', () async {
+    test('getRandomMusic with no songs is a no-op', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
         databaseHelper: databaseHelper,
       );
 
-      final result = await manager.playRandomMusic(const []);
+      final result = await manager.getRandomMusic(const []);
 
       expect(result, isNull);
       verifyNever(() => soundPlayer.playNewSong(any()));
     });
 
     test(
-        'playRandomMusic skips already played songs when repeat history is enabled',
+        'getRandomMusic skips already played songs when repeat history is enabled',
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
@@ -113,17 +113,15 @@ void main() {
       await databaseHelper
           .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
 
-      final first = await manager.playRandomMusic(songs);
-      final second = await manager.playRandomMusic(songs);
+      final first = await manager.getRandomMusic(songs);
+      final second = await manager.getRandomMusic(songs);
 
       expect(first, songs[0]);
       expect(second, songs[1]);
-      verify(() => soundPlayer.playNewSong(songs[0])).called(1);
-      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
     });
 
     test(
-        'playRandomMusic removes oldest remembered song when history reaches limit',
+        'getRandomMusic removes oldest remembered song when history reaches limit',
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
@@ -138,20 +136,17 @@ void main() {
       await databaseHelper
           .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
 
-      await manager.playRandomMusic(songs);
-      await manager.playRandomMusic(songs);
-      final third = await manager.playRandomMusic(songs);
-      final fourth = await manager.playRandomMusic(songs);
+      await manager.getRandomMusic(songs);
+      await manager.getRandomMusic(songs);
+      final third = await manager.getRandomMusic(songs);
+      final fourth = await manager.getRandomMusic(songs);
 
       expect(third, songs[2]);
       expect(fourth, songs[0]);
-      verify(() => soundPlayer.playNewSong(songs[0])).called(2);
-      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
-      verify(() => soundPlayer.playNewSong(songs[2])).called(1);
     });
 
     test(
-        'playRandomMusic limits repeat history to one less than available songs',
+        'getRandomMusic limits repeat history to one less than available songs',
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
@@ -166,10 +161,10 @@ void main() {
       await databaseHelper
           .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '3'});
 
-      await manager.playRandomMusic(songs);
-      await manager.playRandomMusic(songs);
-      final third = await manager.playRandomMusic(songs);
-      final fourth = await manager.playRandomMusic(songs);
+      await manager.getRandomMusic(songs);
+      await manager.getRandomMusic(songs);
+      final third = await manager.getRandomMusic(songs);
+      final fourth = await manager.getRandomMusic(songs);
       final settings = await databaseHelper.getAllData('settings');
       final playedSongsMaxAmount = settings.firstWhere(
         (setting) => setting['name'] == 'playedSongsMaxAmount',
@@ -178,9 +173,6 @@ void main() {
       expect(third, songs[2]);
       expect(fourth, songs[0]);
       expect(playedSongsMaxAmount['value'], '2');
-      verify(() => soundPlayer.playNewSong(songs[0])).called(2);
-      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
-      verify(() => soundPlayer.playNewSong(songs[2])).called(1);
     });
 
     test('selectAndPlaySong delegates selected song to sound player', () async {
@@ -204,6 +196,17 @@ void main() {
       await manager.resumeOrPauseSong();
 
       verify(() => soundPlayer.resumeOrPauseSong()).called(1);
+    });
+
+    test('stopPlayback delegates to sound player', () async {
+      final manager = SoundCollectionManager(
+        player: soundPlayer,
+        databaseHelper: databaseHelper,
+      );
+
+      await manager.stopPlayback();
+
+      verify(() => soundPlayer.stop()).called(1);
     });
 
     test('setLoopMode delegates selected loop mode to sound player', () async {

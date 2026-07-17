@@ -231,17 +231,22 @@ class _PlaylistView extends State<PlaylistView> {
         ElevatedButton(
           onPressed:
               viewModel.canControlCurrentSong ? viewModel.resumeOrPause : null,
-          child: viewModel.isPlaying && viewModel.currentSong != null
-              ? getColoredIconWidget(
-                  context,
-                  Theme.of(context).textTheme.displayLarge!.color!,
-                  Icons.pause,
-                )
-              : getColoredIconWidget(
-                  context,
-                  Theme.of(context).textTheme.displayLarge!.color!,
-                  Icons.play_arrow,
-                ),
+          child: StreamBuilder<bool>(
+            stream: viewModel.playingStream,
+            initialData: false,
+            builder: (context, snapshot) =>
+                snapshot.data == true && viewModel.currentSong != null
+                    ? getColoredIconWidget(
+                        context,
+                        Theme.of(context).textTheme.displayLarge!.color!,
+                        Icons.pause,
+                      )
+                    : getColoredIconWidget(
+                        context,
+                        Theme.of(context).textTheme.displayLarge!.color!,
+                        Icons.play_arrow,
+                      ),
+          ),
         ),
         ElevatedButton(
           onPressed: viewModel.canShuffle ? viewModel.shuffle : null,

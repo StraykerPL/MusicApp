@@ -55,13 +55,44 @@ void main() {
       verify(() => harness.player.pause()).called(1);
     });
 
-    test('stop delegates to audio player', () async {
+    test('stop ends playback, deactivates the session, and removes controls',
+        () async {
       final harness = await HandlerHarness.create();
       addTearDown(harness.close);
 
       await harness.handler.stop();
 
       verify(() => harness.player.stop()).called(1);
+      verify(() => harness.session.setActive(false)).called(1);
+      expect(harness.handler.mediaItem.value, isNull);
+      expect(
+        harness.handler.transformEvent(PlaybackEvent()).controls,
+        isEmpty,
+      );
+    });
+
+    test('commands are ignored after playback has been stopped', () async {
+      final harness = await HandlerHarness.create();
+      addTearDown(harness.close);
+      var nextCalls = 0;
+      var previousCalls = 0;
+      harness.handler.setNotificationSkipHandlers(
+        skipToNext: () async => nextCalls++,
+        skipToPrevious: () async => previousCalls++,
+      );
+
+      await harness.handler.stop();
+      clearInteractions(harness.player);
+      await harness.handler.play();
+      await harness.handler.pause();
+      await harness.handler.resumeOrPauseSong();
+      await harness.handler.skipToNext();
+      await harness.handler.skipToPrevious();
+
+      verifyNever(() => harness.player.play());
+      verifyNever(() => harness.player.pause());
+      expect(nextCalls, 0);
+      expect(previousCalls, 0);
     });
 
     test('skipToNext delegates to notification skip handler', () async {

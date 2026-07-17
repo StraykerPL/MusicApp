@@ -104,25 +104,34 @@ class _MainDrawer extends State<MainDrawer> {
           ),
           ListTile(
             title: const Text("Settings"),
-            onTap: () {
+            onTap: () async {
               final databaseHelper = context.read<DatabaseHelper>();
               final playlistManager = context.read<PlaylistManager>();
               final loadedSongCount = context.read<List<MusicFile>>().length;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  // Route-scoped: the provider disposes unsaved settings state
-                  // when the settings route is removed.
-                  builder: (_) => ChangeNotifierProvider(
-                    create: (_) => SettingsViewModel(
-                      databaseHelper: databaseHelper,
-                      playlistManager: playlistManager,
-                      loadedSongCount: loadedSongCount,
-                    )..load(),
-                    child: const SettingsView(),
+              await playlistViewModel.enterSettings();
+
+              if (!context.mounted) {
+                playlistViewModel.leaveSettings();
+                return;
+              }
+
+              try {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider(
+                      create: (_) => SettingsViewModel(
+                        databaseHelper: databaseHelper,
+                        playlistManager: playlistManager,
+                        loadedSongCount: loadedSongCount,
+                      )..load(),
+                      child: const SettingsView(),
+                    ),
                   ),
-                ),
-              );
+                );
+              } finally {
+                playlistViewModel.leaveSettings();
+              }
             },
           ),
           ListTile(

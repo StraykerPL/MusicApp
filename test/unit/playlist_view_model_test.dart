@@ -49,6 +49,7 @@ void main() {
       when(() => soundPlayer.setLoopMode(any())).thenAnswer((_) async {});
       when(() => soundPlayer.playNewSong(any())).thenAnswer((_) async {});
       when(() => soundPlayer.resumeOrPauseSong()).thenAnswer((_) async {});
+      when(() => soundPlayer.stop()).thenAnswer((_) async {});
       when(
         () => soundPlayer.setNotificationSkipHandlers(
           skipToNext: any(named: 'skipToNext'),
@@ -113,7 +114,56 @@ void main() {
 
       expect(viewModel.currentPlaylistName, 'Focus');
       expect(viewModel.songs.map((song) => song.name), ['beta']);
+      expect(viewModel.currentSong, isNull);
+      expect(viewModel.isPlaybackAvailable, isTrue);
+      verify(() => soundPlayer.stop()).called(1);
       verify(() => soundPlayer.setLoopMode(false)).called(1);
+    });
+
+    test('switching playlists stops playback and clears the selected song',
+        () async {
+      final playlistId = await databaseHelper.createPlaylist('Focus');
+      await databaseHelper.addSongToPlaylist(
+        playlistId,
+        songs[1].filePath,
+      );
+      await viewModel.initialize();
+      await viewModel.selectSong(songs.first);
+      clearInteractions(soundPlayer);
+
+      await viewModel.switchPlaylist('Focus');
+
+      expect(viewModel.currentSong, isNull);
+      expect(viewModel.canControlCurrentSong, isFalse);
+      verify(() => soundPlayer.stop()).called(1);
+      verifyNever(() => soundPlayer.playNewSong(any()));
+    });
+
+    test('settings stop playback and block commands until settings closes',
+        () async {
+      await viewModel.initialize();
+      await viewModel.selectSong(songs.first);
+      clearInteractions(soundPlayer);
+
+      await viewModel.enterSettings();
+      await viewModel.selectSong(songs.last);
+      await viewModel.resumeOrPause();
+      await viewModel.shuffle();
+      await skipToNext!();
+
+      expect(viewModel.isPlaybackAvailable, isFalse);
+      expect(viewModel.currentSong, isNull);
+      expect(viewModel.canControlCurrentSong, isFalse);
+      expect(viewModel.canShuffle, isFalse);
+      verify(() => soundPlayer.stop()).called(1);
+      verifyNever(() => soundPlayer.playNewSong(any()));
+      verifyNever(() => soundPlayer.resumeOrPauseSong());
+
+      viewModel.leaveSettings();
+
+      expect(viewModel.isPlaybackAvailable, isTrue);
+      expect(viewModel.currentSong, isNull);
+      expect(viewModel.canControlCurrentSong, isFalse);
     });
 
     test('completed playback advances and wraps when looping is off', () async {
@@ -135,7 +185,6 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(viewModel.currentSong, songs.first);
-      expect(viewModel.isPlaying, isFalse);
       verify(() => soundPlayer.playNewSong(songs.first)).called(1);
     });
 
