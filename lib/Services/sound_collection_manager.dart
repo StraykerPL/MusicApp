@@ -2,22 +2,22 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/default_audio_handler.dart';
-import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Services/default_audio_handler.dart';
+import 'package:strayker_music/Services/sound_player.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
 
 final class SoundCollectionManager {
   SoundCollectionManager({
     required SoundPlayer player,
-    required DatabaseHelper databaseHelper,
+    required SettingsSnapshotRepository settingsSnapshotRepository,
     Random? random,
   })  : _soundPlayer = player,
-        _databaseHelper = databaseHelper,
+        _settingsSnapshotRepository = settingsSnapshotRepository,
         _random = random ?? Random();
 
   final SoundPlayer _soundPlayer;
-  final DatabaseHelper _databaseHelper;
+  final SettingsSnapshotRepository _settingsSnapshotRepository;
   final Random _random;
   final List<MusicFile> _playedSongs = [];
   int _playedSongsMaxAmount = 0;
@@ -92,13 +92,15 @@ final class SoundCollectionManager {
   }
 
   Future<int> _getPlayedSongsMaxAmount(List<MusicFile> availableSongs) async {
-    final snapshot = await _databaseHelper.getSettingsSnapshot();
+    final snapshot = await _settingsSnapshotRepository.get();
     final savedMaxAmount = snapshot.playedSongsMaxAmount;
     final maxAllowedAmount = _getPlayedSongsMaxAllowed(availableSongs);
     final clampedMaxAmount = savedMaxAmount.clamp(0, maxAllowedAmount);
 
     if (clampedMaxAmount != savedMaxAmount) {
-      await _databaseHelper.updatePlayedSongsMaxAmount(clampedMaxAmount);
+      await _settingsSnapshotRepository.updatePlayedSongsMaxAmount(
+        clampedMaxAmount,
+      );
     }
 
     return clampedMaxAmount;

@@ -6,11 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/default_audio_handler.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
-import 'package:strayker_music/Business/sound_collection_manager.dart';
-import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Services/default_audio_handler.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
+import 'package:strayker_music/Services/sound_collection_manager.dart';
+import 'package:strayker_music/Services/sound_player.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 import 'package:strayker_music/Widgets/playlist_view.dart';
@@ -46,7 +45,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PlaylistView current behavior', () {
-    late DatabaseHelper databaseHelper;
+    late FakePlaylistRepository playlistRepository;
+    late FakeSettingsSnapshotRepository settingsSnapshotRepository;
     late PlaylistManager playlistManager;
     late MockSoundPlayer soundPlayer;
     late SoundCollectionManager soundCollectionManager;
@@ -66,20 +66,21 @@ void main() {
         buildNumber: '1',
         buildSignature: '',
       );
-      databaseHelper = FakePlaylistDatabaseHelper();
+      playlistRepository = FakePlaylistRepository();
+      settingsSnapshotRepository = FakeSettingsSnapshotRepository();
       songs = [
         createSong('/music/gamma.mp3'),
         createSong('/music/alpha.mp3'),
         createSong('/music/beta.mp3'),
       ];
       playlistManager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: songs,
       );
       soundPlayer = MockSoundPlayer();
       soundCollectionManager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
       playlistViewModel = PlaylistViewModel(
         playlistManager: playlistManager,
@@ -129,7 +130,6 @@ void main() {
         MultiProvider(
           providers: [
             Provider<List<MusicFile>>.value(value: songs),
-            Provider<DatabaseHelper>.value(value: databaseHelper),
             ListenableProvider<PlaylistManager>.value(value: playlistManager),
             Provider<SoundPlayer>.value(value: soundPlayer),
             Provider<SoundCollectionManager>.value(
@@ -175,8 +175,8 @@ void main() {
 
     testWidgets('playlist selection changes the title and displayed songs',
         (tester) async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(
         playlistId,
         '/music/beta.mp3',
       );
@@ -206,9 +206,9 @@ void main() {
     testWidgets(
         'completed playback advances and wraps in a named playlist when looping is off',
         (tester) async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
+      final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await databaseHelper.addSongToPlaylist(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.filePath);
       }
       await playlistManager.switchToPlaylist('Focus');
       await pumpPlaylistView(tester);
@@ -230,9 +230,9 @@ void main() {
 
     testWidgets('notification next and previous use the playlist and wrap',
         (tester) async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
+      final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await databaseHelper.addSongToPlaylist(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.filePath);
       }
       await playlistManager.switchToPlaylist('Focus');
       await pumpPlaylistView(tester);
@@ -266,7 +266,7 @@ void main() {
 
     testWidgets('shuffle is disabled when the current playlist is empty',
         (tester) async {
-      await databaseHelper.createPlaylist('Empty');
+      await playlistRepository.create('Empty');
       await playlistManager.switchToPlaylist('Empty');
       await pumpPlaylistView(tester);
 
@@ -288,7 +288,6 @@ void main() {
         MultiProvider(
           providers: [
             Provider<List<MusicFile>>.value(value: songs),
-            Provider<DatabaseHelper>.value(value: databaseHelper),
             ListenableProvider<PlaylistManager>.value(value: playlistManager),
             Provider<SoundPlayer>.value(value: soundPlayer),
             Provider<SoundCollectionManager>.value(

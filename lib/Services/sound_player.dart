@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:strayker_music/Business/default_audio_handler.dart';
+import 'package:strayker_music/Services/default_audio_handler.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
 class SoundPlayer {

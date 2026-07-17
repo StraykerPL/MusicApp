@@ -3,41 +3,24 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/sound_collection_manager.dart';
-import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Services/sound_collection_manager.dart';
+import 'package:strayker_music/Services/sound_player.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
 
 import '../helpers/fake_random.dart';
 import '../helpers/music_file_test_helper.dart';
-import '../mocks/fake_database.dart';
+import '../mocks/fake_view_database_helpers.dart';
 
 class MockSoundPlayer extends Mock implements SoundPlayer {}
 
-class TrackingDatabaseHelper extends DatabaseHelper {
-  int getSettingsSnapshotCalls = 0;
-
-  @override
-  Future<SettingsSnapshot> getSettingsSnapshot() async {
-    getSettingsSnapshotCalls++;
-    return SettingsSnapshot(
-      playedSongsMaxAmount: 0,
-      storageLocations: [],
-    );
-  }
-}
-
 void main() {
   group('SoundCollectionManager', () {
-    late FakeDatabase fakeDatabase;
-    late DatabaseHelper databaseHelper;
+    late FakeSettingsSnapshotRepository settingsSnapshotRepository;
     late SoundPlayer soundPlayer;
     late StreamController<PlaybackState> playbackStateController;
 
-    setUp(() async {
-      fakeDatabase = await FakeDatabase.seeded();
-      databaseHelper =
-          DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
+    setUp(() {
+      settingsSnapshotRepository = FakeSettingsSnapshotRepository();
       playbackStateController = StreamController<PlaybackState>.broadcast();
       soundPlayer = MockSoundPlayer();
       when(() => soundPlayer.playNewSong(any())).thenAnswer((_) async {});
@@ -50,14 +33,13 @@ void main() {
 
     tearDown(() async {
       await playbackStateController.close();
-      await fakeDatabase.close();
     });
 
     test('getRandomMusic selects a song when repeat history is disabled',
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
         random: FakeRandom([1]),
       );
       final songs = [
@@ -70,11 +52,12 @@ void main() {
       expect(result, songs[1]);
     });
 
-    test('uses the injected database helper for shuffle settings', () async {
-      final trackingDatabaseHelper = TrackingDatabaseHelper();
+    test('uses the injected settings repository for shuffle settings',
+        () async {
+      final trackingRepository = FakeSettingsSnapshotRepository();
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: trackingDatabaseHelper,
+        settingsSnapshotRepository: trackingRepository,
         random: FakeRandom([0]),
       );
 
@@ -83,13 +66,13 @@ void main() {
         createSong('/music/beta.mp3'),
       ]);
 
-      expect(trackingDatabaseHelper.getSettingsSnapshotCalls, 1);
+      expect(trackingRepository.getCalls, 1);
     });
 
     test('getRandomMusic with no songs is a no-op', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
 
       final result = await manager.getRandomMusic(const []);
@@ -103,15 +86,17 @@ void main() {
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
         random: FakeRandom([0, 0, 1]),
       );
       final songs = [
         createSong('/music/alpha.mp3'),
         createSong('/music/beta.mp3'),
       ];
-      await databaseHelper
-          .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
+      settingsSnapshotRepository.snapshot = SettingsSnapshot(
+        playedSongsMaxAmount: 2,
+        storageLocations: [],
+      );
 
       final first = await manager.getRandomMusic(songs);
       final second = await manager.getRandomMusic(songs);
@@ -125,7 +110,7 @@ void main() {
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
         random: FakeRandom([0, 1, 2, 0]),
       );
       final songs = [
@@ -133,8 +118,10 @@ void main() {
         createSong('/music/beta.mp3'),
         createSong('/music/gamma.mp3'),
       ];
-      await databaseHelper
-          .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '2'});
+      settingsSnapshotRepository.snapshot = SettingsSnapshot(
+        playedSongsMaxAmount: 2,
+        storageLocations: [],
+      );
 
       await manager.getRandomMusic(songs);
       await manager.getRandomMusic(songs);
@@ -150,7 +137,7 @@ void main() {
         () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
         random: FakeRandom([0, 1, 2, 0]),
       );
       final songs = [
@@ -158,27 +145,25 @@ void main() {
         createSong('/music/beta.mp3'),
         createSong('/music/gamma.mp3'),
       ];
-      await databaseHelper
-          .updateDataByName('settings', 'playedSongsMaxAmount', {'value': '3'});
+      settingsSnapshotRepository.snapshot = SettingsSnapshot(
+        playedSongsMaxAmount: 3,
+        storageLocations: [],
+      );
 
       await manager.getRandomMusic(songs);
       await manager.getRandomMusic(songs);
       final third = await manager.getRandomMusic(songs);
       final fourth = await manager.getRandomMusic(songs);
-      final settings = await databaseHelper.getAllData('settings');
-      final playedSongsMaxAmount = settings.firstWhere(
-        (setting) => setting['name'] == 'playedSongsMaxAmount',
-      );
 
       expect(third, songs[2]);
       expect(fourth, songs[0]);
-      expect(playedSongsMaxAmount['value'], '2');
+      expect(settingsSnapshotRepository.snapshot.playedSongsMaxAmount, 2);
     });
 
     test('selectAndPlaySong delegates selected song to sound player', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
       final song = createSong('/music/alpha.mp3');
 
@@ -190,7 +175,7 @@ void main() {
     test('resumeOrPauseSong delegates to sound player', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
 
       await manager.resumeOrPauseSong();
@@ -201,7 +186,7 @@ void main() {
     test('stopPlayback delegates to sound player', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
 
       await manager.stopPlayback();
@@ -212,7 +197,7 @@ void main() {
     test('setLoopMode delegates selected loop mode to sound player', () async {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
 
       await manager.setLoopMode(true);
@@ -225,7 +210,7 @@ void main() {
     test('getPlaybackStateSubscription returns sound player subscription', () {
       final manager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
 
       final subscription = manager.getPlaybackStateSubscription;

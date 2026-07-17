@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strayker_music/Business/database_helper.dart';
+import 'package:strayker_music/Services/database_helper.dart';
 
 import '../mocks/fake_database.dart';
 
@@ -18,89 +18,72 @@ void main() {
       await fakeDatabase.close();
     });
 
-    test('getAllData returns stored rows for the requested table', () async {
-      final expectedRows = await fakeDatabase.snapshot('settings');
-
-      final result = await databaseHelper.getAllData('settings');
-
-      expect(result, expectedRows);
-    });
-
-    test('insertData stores every provided row', () async {
-      final rowsToInsert = [
-        {'name': '/music/rock'},
-        {'name': '/music/jazz'},
-      ];
-
-      await databaseHelper.insertData('storageLocations', rowsToInsert);
-
+    test('queries seeded settings data', () async {
       expect(
-        await fakeDatabase.snapshot('storageLocations'),
-        [
-          {'id': 1, 'name': '/storage/emulated/0/Music'},
-          {'id': 2, 'name': '/music/rock'},
-          {'id': 3, 'name': '/music/jazz'},
-        ],
+        await databaseHelper.queryPlayedSongsMaxAmount(),
+        {'value': '0'},
+      );
+      expect(
+        await databaseHelper.queryStorageLocations(),
+        ['/storage/emulated/0/Music'],
       );
     });
 
-    test('updateDataByName changes only the matching row', () async {
-      await databaseHelper.insertData('settings', [
-        {'name': 'volume', 'value': '10'},
-      ]);
-
-      await databaseHelper
-          .updateDataByName('settings', 'volume', {'value': '20'});
+    test('replaces settings and storage locations atomically', () async {
+      await databaseHelper.replaceSettingsData(
+        playedSongsMaxAmount: 2,
+        storageLocations: ['/music/rock', '/music/jazz'],
+      );
 
       expect(
-        await fakeDatabase.snapshot('settings'),
-        [
-          {'id': 1, 'name': 'playedSongsMaxAmount', 'value': '0'},
-          {'id': 2, 'name': 'volume', 'value': '20'},
-        ],
+        await databaseHelper.queryPlayedSongsMaxAmount(),
+        {'value': '2'},
+      );
+      expect(
+        await databaseHelper.queryStorageLocations(),
+        ['/music/rock', '/music/jazz'],
       );
     });
 
-    test('cleanTable removes all rows from the selected table', () async {
-      await databaseHelper.cleanTable('playlists');
-
-      expect(await fakeDatabase.snapshot('playlists'), isEmpty);
-    });
-
-    test('playlist operations keep playlist and song data consistent',
+    test('playlist operations keep playlist and membership data consistent',
         () async {
-      final playlistId = await databaseHelper.createPlaylist('Road Trip');
+      final playlistId = await databaseHelper.insertPlaylist('Road Trip');
 
-      await databaseHelper.addSongToPlaylist(playlistId, '/songs/one.mp3');
-      await databaseHelper.addSongToPlaylist(playlistId, '/songs/two.mp3');
-      final createdPlaylists = await databaseHelper.getPlaylists();
-      final createdSongs = await databaseHelper.getPlaylistSongs(playlistId);
+      await databaseHelper.insertPlaylistSong(playlistId, '/songs/one.mp3');
+      await databaseHelper.insertPlaylistSong(playlistId, '/songs/two.mp3');
 
+      expect(await databaseHelper.queryPlaylists(), [
+        {'id': playlistId, 'name': 'Road Trip'},
+      ]);
       expect(
-        createdPlaylists,
-        equals([
-          {'name': 'Road Trip', 'id': playlistId}
-        ]),
+        await databaseHelper.queryPlaylistByName('Road Trip'),
+        {'id': playlistId, 'name': 'Road Trip'},
       );
       expect(
-        createdSongs,
+        await databaseHelper.queryPlaylistSongPaths(playlistId),
+        ['/songs/one.mp3', '/songs/two.mp3'],
+      );
+      expect(
+        await databaseHelper.queryPlaylistContainsSong(
+          playlistId,
+          '/songs/one.mp3',
+        ),
+        isTrue,
+      );
+      expect(
+        await databaseHelper.queryPlaylistsContainingSong('/songs/two.mp3'),
         [
-          {'id': 1, 'playlistId': playlistId, 'songPath': '/songs/one.mp3'},
-          {'id': 2, 'playlistId': playlistId, 'songPath': '/songs/two.mp3'},
+          {'id': playlistId, 'name': 'Road Trip'},
         ],
       );
 
-      await databaseHelper.removeSongFromPlaylist(playlistId, '/songs/one.mp3');
-
+      await databaseHelper.deletePlaylistSong(playlistId, '/songs/one.mp3');
       expect(
-        await fakeDatabase.snapshot('playlistSongs'),
-        [
-          {'id': 2, 'playlistId': playlistId, 'songPath': '/songs/two.mp3'},
-        ],
+        await databaseHelper.queryPlaylistSongPaths(playlistId),
+        ['/songs/two.mp3'],
       );
 
       await databaseHelper.deletePlaylist(playlistId);
-
       expect(await fakeDatabase.snapshot('playlists'), isEmpty);
       expect(await fakeDatabase.snapshot('playlistSongs'), isEmpty);
     });

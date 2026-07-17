@@ -4,7 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Services/sound_player.dart';
 
 import '../helpers/audio_test_helpers.dart';
 import '../helpers/handler_harness.dart';

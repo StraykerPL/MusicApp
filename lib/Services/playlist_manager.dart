@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:strayker_music/Business/database_helper.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Models/playlist.dart';
+import 'package:strayker_music/Repositories/playlist_repository.dart';
 
 final class PlaylistManager with ChangeNotifier {
-  final DatabaseHelper _databaseHelper;
+  final PlaylistRepository _playlistRepository;
   final List<MusicFile> _allSongs;
 
   String _currentPlaylist = "All Files";
@@ -16,9 +16,9 @@ final class PlaylistManager with ChangeNotifier {
   List<MusicFile> get currentPlaylistSongs => _currentPlaylistSongs;
 
   PlaylistManager({
-    required DatabaseHelper databaseHelper,
+    required PlaylistRepository playlistRepository,
     required List<MusicFile> allSongs,
-  })  : _databaseHelper = databaseHelper,
+  })  : _playlistRepository = playlistRepository,
         _allSongs = allSongs {
     _allSongs.sort(
         (firstFile, secondFile) => firstFile.name.compareTo(secondFile.name));
@@ -26,41 +26,36 @@ final class PlaylistManager with ChangeNotifier {
   }
 
   Future<List<Playlist>> getPlaylists() async {
-    return await _databaseHelper.getPlaylistModels();
+    return _playlistRepository.getAll();
   }
 
   Future<List<String>> getPlaylistSongs(int playlistId) async {
-    return await _databaseHelper.getPlaylistSongPaths(playlistId);
+    return _playlistRepository.getSongPaths(playlistId);
   }
 
   Future<int> createPlaylist(String playlistName) async {
-    final playlistId = await _databaseHelper.createPlaylist(playlistName);
+    final playlist = await _playlistRepository.create(playlistName);
     await loadAvailablePlaylists();
     notifyListeners();
-    return playlistId;
+    return playlist.id;
   }
 
   Future<void> addSongToPlaylist(int playlistId, String songPath) async {
-    await _databaseHelper.addSongToPlaylist(playlistId, songPath);
+    await _playlistRepository.addSong(playlistId, songPath);
   }
 
   Future<void> removeSongFromPlaylist(int playlistId, String songPath) async {
-    await _databaseHelper.removeSongFromPlaylist(playlistId, songPath);
+    await _playlistRepository.removeSong(playlistId, songPath);
   }
 
   Future<void> deletePlaylist(int playlistId) async {
-    await _databaseHelper.deletePlaylist(playlistId);
+    await _playlistRepository.delete(playlistId);
     await loadAvailablePlaylists();
     notifyListeners();
   }
 
   Future<Playlist?> getPlaylistByName(String playlistName) async {
-    final playlists = await getPlaylists();
-    try {
-      return playlists.firstWhere((playlist) => playlist.name == playlistName);
-    } catch (e) {
-      return null;
-    }
+    return _playlistRepository.getByName(playlistName);
   }
 
   Future<List<MusicFile>> getPlaylistSongsByName(
@@ -153,22 +148,12 @@ final class PlaylistManager with ChangeNotifier {
       return false;
     }
 
-    final playlistSongs = await getPlaylistSongs(playlist.id);
-    return playlistSongs.contains(songPath);
+    return _playlistRepository.containsSong(playlist.id, songPath);
   }
 
   Future<List<String>> getPlaylistsContainingSong(String songPath) async {
-    final playlists = await getPlaylists();
-    final containingPlaylists = <String>[];
-
-    for (final playlist in playlists) {
-      final isInPlaylist = await isSongInPlaylist(playlist.name, songPath);
-      if (isInPlaylist) {
-        containingPlaylists.add(playlist.name);
-      }
-    }
-
-    return containingPlaylists;
+    final playlists = await _playlistRepository.getContainingSong(songPath);
+    return [for (final playlist in playlists) playlist.name];
   }
 
   MusicFile getNextSongFromPlaylist(MusicFile song) {

@@ -1,29 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/playlist.dart';
 
 import '../helpers/music_file_test_helper.dart';
-import '../mocks/fake_database.dart';
+import '../mocks/fake_view_database_helpers.dart';
 
 void main() {
   group('PlaylistManager', () {
-    late FakeDatabase fakeDatabase;
-    late DatabaseHelper databaseHelper;
+    late FakePlaylistRepository playlistRepository;
 
-    setUp(() async {
-      fakeDatabase = await FakeDatabase.seeded();
-      databaseHelper =
-          DatabaseHelper(databaseProvider: () async => fakeDatabase.database);
-    });
-
-    tearDown(() async {
-      await fakeDatabase.close();
+    setUp(() {
+      playlistRepository = FakePlaylistRepository();
     });
 
     test('constructor sorts songs and initializes All Files playlist', () {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [
           createSong('/music/zebra.mp3'),
           createSong('/music/alpha.mp3'),
@@ -42,7 +34,7 @@ void main() {
     test('createPlaylist returns id, reloads playlists, and notifies listeners',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [createSong('/music/alpha.mp3')],
       );
       var notifications = 0;
@@ -58,11 +50,11 @@ void main() {
     test('getPlaylistByName returns matching playlist and null when missing',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [createSong('/music/alpha.mp3')],
       );
-      await databaseHelper.createPlaylist('Road Trip');
-      await databaseHelper.createPlaylist('Focus');
+      await playlistRepository.create('Road Trip');
+      await playlistRepository.create('Focus');
 
       final existing = await manager.getPlaylistByName('Focus');
       final missing = await manager.getPlaylistByName('Missing');
@@ -75,16 +67,16 @@ void main() {
         'switchToPlaylist updates selected playlist, songs, and notifies listeners',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [
           createSong('/music/alpha.mp3'),
           createSong('/music/beta.mp3'),
           createSong('/music/gamma.mp3'),
         ],
       );
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(playlistId, '/music/beta.mp3');
-      await databaseHelper.addSongToPlaylist(playlistId, '/music/gamma.mp3');
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(playlistId, '/music/beta.mp3');
+      await playlistRepository.addSong(playlistId, '/music/gamma.mp3');
       var notifications = 0;
       manager.addListener(() => notifications++);
 
@@ -106,7 +98,7 @@ void main() {
         createSong('/music/beta.mp3'),
       ];
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: songs,
       );
 
@@ -123,13 +115,13 @@ void main() {
         'addSongToPlaylistByName adds song and refreshes current playlist when selected',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [
           createSong('/music/alpha.mp3'),
           createSong('/music/beta.mp3'),
         ],
       );
-      await databaseHelper.createPlaylist('Focus');
+      await playlistRepository.create('Focus');
       await manager.switchToPlaylist('Focus');
       var notifications = 0;
       manager.addListener(() => notifications++);
@@ -147,15 +139,15 @@ void main() {
         'removeSongFromPlaylistByName removes song and refreshes current playlist when selected',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [
           createSong('/music/alpha.mp3'),
           createSong('/music/beta.mp3'),
         ],
       );
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(playlistId, '/music/alpha.mp3');
-      await databaseHelper.addSongToPlaylist(playlistId, '/music/beta.mp3');
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(playlistId, '/music/alpha.mp3');
+      await playlistRepository.addSong(playlistId, '/music/beta.mp3');
       await manager.switchToPlaylist('Focus');
 
       await manager.removeSongFromPlaylistByName('Focus', '/music/beta.mp3');
@@ -170,14 +162,14 @@ void main() {
         'deletePlaylistByName deletes playlist, reloads names, and switches back to All Files',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [
           createSong('/music/alpha.mp3'),
           createSong('/music/beta.mp3'),
         ],
       );
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(playlistId, '/music/alpha.mp3');
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(playlistId, '/music/alpha.mp3');
       await manager.switchToPlaylist('Focus');
 
       await manager.deletePlaylistByName('Focus');
@@ -194,11 +186,11 @@ void main() {
         'isSongInPlaylist handles All Files, missing playlists, and stored songs',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [createSong('/music/alpha.mp3')],
       );
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(playlistId, '/music/beta.mp3');
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(playlistId, '/music/beta.mp3');
 
       final inAllFiles =
           await manager.isSongInPlaylist('All Files', '/music/alpha.mp3');
@@ -216,13 +208,13 @@ void main() {
         'getPlaylistsContainingSong returns only playlists that contain the song',
         () async {
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [createSong('/music/alpha.mp3')],
       );
-      final roadTripId = await databaseHelper.createPlaylist('Road Trip');
-      final focusId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(roadTripId, '/music/alpha.mp3');
-      await databaseHelper.addSongToPlaylist(focusId, '/music/beta.mp3');
+      final roadTripId = (await playlistRepository.create('Road Trip')).id;
+      final focusId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(roadTripId, '/music/alpha.mp3');
+      await playlistRepository.addSong(focusId, '/music/beta.mp3');
 
       final result =
           await manager.getPlaylistsContainingSong('/music/alpha.mp3');
@@ -235,7 +227,7 @@ void main() {
       final beta = createSong('/music/beta.mp3');
       final gamma = createSong('/music/gamma.mp3');
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [beta, gamma, alpha],
       );
 
@@ -252,7 +244,7 @@ void main() {
       final beta = createSong('/music/beta.mp3');
       final gamma = createSong('/music/gamma.mp3');
       final manager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [beta, gamma, alpha],
       );
 

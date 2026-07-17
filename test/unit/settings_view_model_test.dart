@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
+import 'package:strayker_music/Models/settings_snapshot.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
 
 import '../helpers/music_file_test_helper.dart';
@@ -8,14 +8,16 @@ import '../mocks/fake_view_database_helpers.dart';
 
 void main() {
   group('SettingsViewModel', () {
-    late FakeSettingsDatabaseHelper databaseHelper;
+    late FakeSettingsSnapshotRepository settingsSnapshotRepository;
+    late FakePlaylistRepository playlistRepository;
     late PlaylistManager playlistManager;
     late SettingsViewModel viewModel;
 
     setUp(() {
-      databaseHelper = FakeSettingsDatabaseHelper();
+      settingsSnapshotRepository = FakeSettingsSnapshotRepository();
+      playlistRepository = FakePlaylistRepository();
       playlistManager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: [
           createSong('/music/alpha.mp3'),
           createSong('/music/beta.mp3'),
@@ -23,7 +25,7 @@ void main() {
         ],
       );
       viewModel = SettingsViewModel(
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
         playlistManager: playlistManager,
         loadedSongCount: 3,
       );
@@ -32,7 +34,7 @@ void main() {
     tearDown(() => viewModel.dispose());
 
     test('loads settings, storage locations, and playlists', () async {
-      await databaseHelper.createPlaylist('Focus');
+      await playlistRepository.create('Focus');
 
       await viewModel.load();
 
@@ -47,16 +49,15 @@ void main() {
     });
 
     test('clamps loaded and entered shuffle history amounts', () async {
-      await databaseHelper.updateDataByName(
-        DatabaseConstants.settingsTableName,
-        DatabaseConstants.playedSongsMaxAmountTableValueName,
-        {'value': '999'},
+      settingsSnapshotRepository.snapshot = SettingsSnapshot(
+        playedSongsMaxAmount: 999,
+        storageLocations: settingsSnapshotRepository.snapshot.storageLocations,
       );
 
       await viewModel.load();
 
       expect(viewModel.playedSongsMaxAmount, 2);
-      expect(databaseHelper.settings.single['value'], 2);
+      expect(settingsSnapshotRepository.snapshot.playedSongsMaxAmount, 2);
 
       viewModel.setPlayedSongsMaxAmountFromText('999');
       expect(viewModel.playedSongsMaxAmount, 2);
@@ -114,9 +115,9 @@ void main() {
 
       await viewModel.save();
 
-      expect(databaseHelper.settings.single['value'], 2);
+      expect(settingsSnapshotRepository.snapshot.playedSongsMaxAmount, 2);
       expect(
-        databaseHelper.storageLocations.map((row) => row['name']),
+        settingsSnapshotRepository.snapshot.storageLocations,
         ['/storage/emulated/0/Music', '/music/custom'],
       );
 
@@ -124,15 +125,15 @@ void main() {
 
       expect(viewModel.playedSongsMaxAmount, 0);
       expect(viewModel.storageLocations, ['/storage/emulated/0/Music']);
-      expect(databaseHelper.settings.single['value'], 0);
+      expect(settingsSnapshotRepository.snapshot.playedSongsMaxAmount, 0);
       expect(
-        databaseHelper.storageLocations.map((row) => row['name']),
+        settingsSnapshotRepository.snapshot.storageLocations,
         ['/storage/emulated/0/Music'],
       );
     });
 
     test('save reports persistence failure and clears busy state', () async {
-      databaseHelper.saveSettingsError = StateError('disk full');
+      settingsSnapshotRepository.saveError = StateError('disk full');
 
       final result = await viewModel.save();
 
@@ -149,7 +150,7 @@ void main() {
       await viewModel.load();
       viewModel.setPlayedSongsMaxAmountFromText('2');
       viewModel.addStoragePath('/music/custom');
-      databaseHelper.saveSettingsError = StateError('read-only');
+      settingsSnapshotRepository.saveError = StateError('read-only');
 
       final result = await viewModel.restoreDefaults();
 
@@ -165,7 +166,7 @@ void main() {
 
     test('a second persistence command is rejected while save is running',
         () async {
-      final saveStarted = databaseHelper.pauseNextSave();
+      final saveStarted = settingsSnapshotRepository.pauseNextSave();
       final firstSave = viewModel.save();
       await saveStarted;
 
@@ -175,7 +176,7 @@ void main() {
         isA<SettingsCommandNoChange>(),
       );
 
-      databaseHelper.completeSave();
+      settingsSnapshotRepository.completeSave();
       expect(await firstSave, isA<SettingsCommandSuccess>());
       expect(viewModel.isPersistenceInProgress, isFalse);
     });
@@ -206,7 +207,7 @@ void main() {
     });
 
     test('playlist deletion preserves unsaved settings edits', () async {
-      await databaseHelper.createPlaylist('Focus');
+      await playlistRepository.create('Focus');
       await viewModel.load();
       viewModel.setPlayedSongsMaxAmountFromText('2');
       viewModel.addStoragePath('/music/unsaved');

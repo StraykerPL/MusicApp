@@ -1,60 +1,82 @@
 import 'dart:async';
 
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
+import 'package:strayker_music/Models/playlist.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
+import 'package:strayker_music/Repositories/playlist_repository.dart';
+import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
+import 'package:strayker_music/Services/database_helper.dart';
 
-class FakePlaylistDatabaseHelper extends DatabaseHelper {
-  final List<Map<String, dynamic>> _playlists = [];
-  final List<Map<String, dynamic>> _playlistSongs = [];
+class FakePlaylistRepository extends PlaylistRepository {
+  FakePlaylistRepository() : super(databaseHelper: DatabaseHelper());
+
+  final List<Playlist> _playlists = [];
+  final Map<int, List<String>> _songPaths = {};
+  int _nextId = 1;
 
   @override
-  Future<int> createPlaylist(String playlistName) async {
-    final id = _playlists.length + 1;
-    _playlists.add({'id': id, 'name': playlistName});
-    return id;
+  Future<List<Playlist>> getAll() async => List<Playlist>.of(_playlists);
+
+  @override
+  Future<Playlist?> getByName(String name) async {
+    for (final playlist in _playlists) {
+      if (playlist.name == name) {
+        return playlist;
+      }
+    }
+    return null;
   }
 
   @override
-  Future<void> addSongToPlaylist(int playlistId, String songPath) async {
-    _playlistSongs.add({'playlistId': playlistId, 'songPath': songPath});
+  Future<Playlist> create(String name) async {
+    final playlist = Playlist(id: _nextId++, name: name);
+    _playlists.add(playlist);
+    _songPaths[playlist.id] = [];
+    return playlist;
   }
 
   @override
-  Future<void> removeSongFromPlaylist(int playlistId, String songPath) async {
-    _playlistSongs.removeWhere(
-      (song) =>
-          song['playlistId'] == playlistId && song['songPath'] == songPath,
-    );
+  Future<void> delete(int playlistId) async {
+    _playlists.removeWhere((playlist) => playlist.id == playlistId);
+    _songPaths.remove(playlistId);
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getPlaylists() async {
-    return List<Map<String, dynamic>>.from(_playlists);
+  Future<List<String>> getSongPaths(int playlistId) async =>
+      List<String>.of(_songPaths[playlistId] ?? const []);
+
+  @override
+  Future<void> addSong(int playlistId, String songPath) async {
+    _songPaths.putIfAbsent(playlistId, () => []).add(songPath);
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getPlaylistSongs(int playlistId) async {
-    return _playlistSongs
-        .where((song) => song['playlistId'] == playlistId)
-        .map(Map<String, dynamic>.from)
-        .toList();
+  Future<void> removeSong(int playlistId, String songPath) async {
+    _songPaths[playlistId]?.remove(songPath);
   }
+
+  @override
+  Future<bool> containsSong(int playlistId, String songPath) async =>
+      _songPaths[playlistId]?.contains(songPath) ?? false;
+
+  @override
+  Future<List<Playlist>> getContainingSong(String songPath) async => [
+        for (final playlist in _playlists)
+          if (_songPaths[playlist.id]?.contains(songPath) ?? false) playlist,
+      ];
 }
 
-class FakeSettingsDatabaseHelper extends DatabaseHelper {
-  final List<Map<String, dynamic>> settings = [
-    {'id': 1, 'name': 'playedSongsMaxAmount', 'value': '0'},
-  ];
-  final List<Map<String, dynamic>> storageLocations = [
-    {'id': 1, 'name': '/storage/emulated/0/Music'},
-  ];
-  int _nextStorageId = 2;
-  final List<Map<String, dynamic>> playlists = [];
-  int _nextPlaylistId = 1;
-  int getSettingsSnapshotCalls = 0;
-  int saveSettingsSnapshotCalls = 0;
-  Object? saveSettingsError;
+class FakeSettingsSnapshotRepository extends SettingsSnapshotRepository {
+  FakeSettingsSnapshotRepository()
+      : snapshot = SettingsSnapshot(
+          playedSongsMaxAmount: 0,
+          storageLocations: ['/storage/emulated/0/Music'],
+        ),
+        super(databaseHelper: DatabaseHelper());
+
+  SettingsSnapshot snapshot;
+  int getCalls = 0;
+  int saveCalls = 0;
+  Object? saveError;
   Completer<void>? _saveStarted;
   Completer<void>? _pendingSave;
 
@@ -70,83 +92,35 @@ class FakeSettingsDatabaseHelper extends DatabaseHelper {
   }
 
   @override
-  Future<SettingsSnapshot> getSettingsSnapshot() async {
-    getSettingsSnapshotCalls++;
-    return super.getSettingsSnapshot();
+  Future<SettingsSnapshot> get() async {
+    getCalls++;
+    return snapshot;
   }
 
   @override
-  Future<void> saveSettingsSnapshot(SettingsSnapshot snapshot) async {
-    saveSettingsSnapshotCalls++;
+  Future<void> save(SettingsSnapshot value) async {
+    saveCalls++;
     _saveStarted?.complete();
     _saveStarted = null;
     final pendingSave = _pendingSave;
     if (pendingSave != null) {
       await pendingSave.future;
     }
-    final error = saveSettingsError;
+    final error = saveError;
     if (error != null) {
       throw error;
     }
-    await super.saveSettingsSnapshot(snapshot);
-  }
-
-  List<Map<String, dynamic>> _table(String tableName) {
-    if (tableName == DatabaseConstants.settingsTableName) {
-      return settings;
-    }
-    if (tableName == DatabaseConstants.storagePathsTableName) {
-      return storageLocations;
-    }
-    return [];
+    snapshot = SettingsSnapshot(
+      playedSongsMaxAmount: value.playedSongsMaxAmount,
+      storageLocations: value.storageLocations,
+    );
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getAllData(String tableName) async {
-    return _table(tableName).map(Map<String, dynamic>.from).toList();
-  }
-
-  @override
-  Future<void> updateDataByName(
-    String tableName,
-    String name,
-    Map<String, dynamic> data,
-  ) async {
-    _table(tableName).firstWhere((row) => row['name'] == name).addAll(data);
-  }
-
-  @override
-  Future<void> cleanTable(String tableName) async {
-    _table(tableName).clear();
-  }
-
-  @override
-  Future<void> insertData(
-    String tableName,
-    List<Map<String, dynamic>> data,
-  ) async {
-    for (final row in data) {
-      _table(tableName).add({
-        if (tableName == DatabaseConstants.storagePathsTableName)
-          'id': _nextStorageId++,
-        ...row,
-      });
-    }
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> getPlaylists() async =>
-      playlists.map(Map<String, dynamic>.from).toList();
-
-  @override
-  Future<int> createPlaylist(String playlistName) async {
-    final id = _nextPlaylistId++;
-    playlists.add({'id': id, 'name': playlistName});
-    return id;
-  }
-
-  @override
-  Future<void> deletePlaylist(int playlistId) async {
-    playlists.removeWhere((playlist) => playlist['id'] == playlistId);
+  Future<void> updatePlayedSongsMaxAmount(int value) async {
+    snapshot = SettingsSnapshot(
+      playedSongsMaxAmount: value,
+      storageLocations: snapshot.storageLocations,
+    );
   }
 }

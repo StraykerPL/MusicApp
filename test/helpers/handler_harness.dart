@@ -3,7 +3,7 @@ import '../unit/default_audio_handler_test.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:strayker_music/Business/default_audio_handler.dart';
+import 'package:strayker_music/Services/default_audio_handler.dart';
 
 class HandlerHarness {
   HandlerHarness({

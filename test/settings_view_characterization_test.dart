@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Models/settings_snapshot.dart';
+import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
 import 'package:strayker_music/Widgets/settings.dart';
 
@@ -13,19 +13,21 @@ import 'mocks/fake_view_database_helpers.dart';
 
 void main() {
   group('SettingsView current behavior', () {
-    late FakeSettingsDatabaseHelper databaseHelper;
+    late FakeSettingsSnapshotRepository settingsSnapshotRepository;
+    late FakePlaylistRepository playlistRepository;
     late PlaylistManager playlistManager;
     late List<MusicFile> songs;
 
     setUp(() async {
-      databaseHelper = FakeSettingsDatabaseHelper();
+      settingsSnapshotRepository = FakeSettingsSnapshotRepository();
+      playlistRepository = FakePlaylistRepository();
       songs = [
         createSong('/music/alpha.mp3'),
         createSong('/music/beta.mp3'),
         createSong('/music/gamma.mp3'),
       ];
       playlistManager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: songs,
       );
     });
@@ -34,11 +36,13 @@ void main() {
       return MultiProvider(
         providers: [
           Provider<List<MusicFile>>.value(value: songs),
-          Provider<DatabaseHelper>.value(value: databaseHelper),
+          Provider<SettingsSnapshotRepository>.value(
+            value: settingsSnapshotRepository,
+          ),
           ListenableProvider<PlaylistManager>.value(value: playlistManager),
           ChangeNotifierProvider(
             create: (_) => SettingsViewModel(
-              databaseHelper: databaseHelper,
+              settingsSnapshotRepository: settingsSnapshotRepository,
               playlistManager: playlistManager,
               loadedSongCount: songs.length,
             )..load(),
@@ -49,15 +53,7 @@ void main() {
     }
 
     Future<String> savedMaximum() async {
-      final settings = await databaseHelper.getAllData(
-        DatabaseConstants.settingsTableName,
-      );
-      return settings
-          .singleWhere(
-            (row) =>
-                row['name'] ==
-                DatabaseConstants.playedSongsMaxAmountTableValueName,
-          )['value']
+      return settingsSnapshotRepository.snapshot.playedSongsMaxAmount
           .toString();
     }
 
@@ -98,8 +94,8 @@ void main() {
       await tester.tap(find.text('Open settings'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, '2');
-      final readsBeforeCancel = databaseHelper.getSettingsSnapshotCalls;
-      final writesBeforeCancel = databaseHelper.saveSettingsSnapshotCalls;
+      final readsBeforeCancel = settingsSnapshotRepository.getCalls;
+      final writesBeforeCancel = settingsSnapshotRepository.saveCalls;
 
       final cancelButton = find.widgetWithText(ElevatedButton, 'Cancel');
       await tester.ensureVisible(cancelButton);
@@ -109,25 +105,15 @@ void main() {
       expect(find.text('Open settings'), findsOneWidget);
       expect(find.text('Settings'), findsNothing);
       expect(await savedMaximum(), '0');
-      expect(databaseHelper.getSettingsSnapshotCalls, readsBeforeCancel);
-      expect(databaseHelper.saveSettingsSnapshotCalls, writesBeforeCancel);
+      expect(settingsSnapshotRepository.getCalls, readsBeforeCancel);
+      expect(settingsSnapshotRepository.saveCalls, writesBeforeCancel);
     });
 
     testWidgets('Load Default persists immediately and keeps the screen open',
         (tester) async {
-      await databaseHelper.updateDataByName(
-        DatabaseConstants.settingsTableName,
-        DatabaseConstants.playedSongsMaxAmountTableValueName,
-        {'value': '2'},
-      );
-      await databaseHelper.cleanTable(
-        DatabaseConstants.storagePathsTableName,
-      );
-      await databaseHelper.insertData(
-        DatabaseConstants.storagePathsTableName,
-        [
-          {'name': '/music/custom'}
-        ],
+      settingsSnapshotRepository.snapshot = SettingsSnapshot(
+        playedSongsMaxAmount: 2,
+        storageLocations: ['/music/custom'],
       );
       await tester.pumpWidget(testApp(home: const SettingsView()));
       await tester.pumpAndSettle();
@@ -137,19 +123,17 @@ void main() {
       await tester.tap(defaultButton);
       await tester.pump(const Duration(milliseconds: 100));
 
-      final paths = await databaseHelper.getAllData(
-        DatabaseConstants.storagePathsTableName,
-      );
       expect(find.text('Settings'), findsOneWidget);
       expect(find.widgetWithText(TextField, '0'), findsOneWidget);
       expect(await savedMaximum(), '0');
-      expect(paths, [
-        {'id': 3, 'name': '/storage/emulated/0/Music'},
-      ]);
+      expect(
+        settingsSnapshotRepository.snapshot.storageLocations,
+        ['/storage/emulated/0/Music'],
+      );
     });
 
     testWidgets('failed Save displays the persistence error', (tester) async {
-      databaseHelper.saveSettingsError = StateError('disk full');
+      settingsSnapshotRepository.saveError = StateError('disk full');
       await tester.pumpWidget(testApp(home: const SettingsView()));
       await tester.pumpAndSettle();
 
@@ -166,7 +150,7 @@ void main() {
 
     testWidgets('failed Load Default displays the persistence error',
         (tester) async {
-      databaseHelper.saveSettingsError = StateError('read-only');
+      settingsSnapshotRepository.saveError = StateError('read-only');
       await tester.pumpWidget(testApp(home: const SettingsView()));
       await tester.pumpAndSettle();
 
@@ -185,7 +169,7 @@ void main() {
 
     testWidgets('all persistence buttons are disabled while saving',
         (tester) async {
-      final saveStarted = databaseHelper.pauseNextSave();
+      final saveStarted = settingsSnapshotRepository.pauseNextSave();
       await tester.pumpWidget(testApp(home: const SettingsView()));
       await tester.pumpAndSettle();
 
@@ -202,7 +186,7 @@ void main() {
         expect(button.onPressed, isNull, reason: '$label should be disabled');
       }
 
-      databaseHelper.completeSave();
+      settingsSnapshotRepository.completeSave();
       await tester.pumpAndSettle();
     });
   });

@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:strayker_music/Business/default_audio_handler.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
-import 'package:strayker_music/Business/sound_collection_manager.dart';
-import 'package:strayker_music/Business/sound_player.dart';
+import 'package:strayker_music/Services/default_audio_handler.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
+import 'package:strayker_music/Services/sound_collection_manager.dart';
+import 'package:strayker_music/Services/sound_player.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 
@@ -17,7 +17,8 @@ class MockSoundPlayer extends Mock implements SoundPlayer {}
 
 void main() {
   group('PlaylistViewModel', () {
-    late FakePlaylistDatabaseHelper databaseHelper;
+    late FakePlaylistRepository playlistRepository;
+    late FakeSettingsSnapshotRepository settingsSnapshotRepository;
     late PlaylistManager playlistManager;
     late MockSoundPlayer soundPlayer;
     late SoundCollectionManager soundCollectionManager;
@@ -29,7 +30,8 @@ void main() {
     NotificationSkipHandler? skipToPrevious;
 
     setUp(() {
-      databaseHelper = FakePlaylistDatabaseHelper();
+      playlistRepository = FakePlaylistRepository();
+      settingsSnapshotRepository = FakeSettingsSnapshotRepository();
       isViewModelDisposed = false;
       songs = [
         createSong('/music/gamma.mp3'),
@@ -37,7 +39,7 @@ void main() {
         createSong('/music/beta.mp3'),
       ];
       playlistManager = PlaylistManager(
-        databaseHelper: databaseHelper,
+        playlistRepository: playlistRepository,
         allSongs: songs,
       );
       soundPlayer = MockSoundPlayer();
@@ -65,7 +67,7 @@ void main() {
 
       soundCollectionManager = SoundCollectionManager(
         player: soundPlayer,
-        databaseHelper: databaseHelper,
+        settingsSnapshotRepository: settingsSnapshotRepository,
       );
       viewModel = PlaylistViewModel(
         playlistManager: playlistManager,
@@ -102,8 +104,8 @@ void main() {
 
     test('switches playlists and applies the named playlist loop mode',
         () async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(
         playlistId,
         '/music/beta.mp3',
       );
@@ -122,8 +124,8 @@ void main() {
 
     test('switching playlists stops playback and clears the selected song',
         () async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(
         playlistId,
         songs[1].filePath,
       );
@@ -167,9 +169,9 @@ void main() {
     });
 
     test('completed playback advances and wraps when looping is off', () async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
+      final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await databaseHelper.addSongToPlaylist(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.filePath);
       }
       await playlistManager.switchToPlaylist('Focus');
       await viewModel.initialize();
@@ -190,9 +192,9 @@ void main() {
 
     test('notification handlers navigate and wrap in the current playlist',
         () async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
+      final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await databaseHelper.addSongToPlaylist(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.filePath);
       }
       await playlistManager.switchToPlaylist('Focus');
       await viewModel.initialize();
@@ -218,8 +220,8 @@ void main() {
     });
 
     test('completed playback without a selected song is a no-op', () async {
-      final playlistId = await databaseHelper.createPlaylist('Focus');
-      await databaseHelper.addSongToPlaylist(
+      final playlistId = (await playlistRepository.create('Focus')).id;
+      await playlistRepository.addSong(
         playlistId,
         songs.first.filePath,
       );
@@ -240,7 +242,7 @@ void main() {
     });
 
     test('shuffle with no songs is a no-op', () async {
-      await databaseHelper.createPlaylist('Empty');
+      await playlistRepository.create('Empty');
       await playlistManager.switchToPlaylist('Empty');
       await viewModel.initialize();
       clearInteractions(soundPlayer);
@@ -253,7 +255,7 @@ void main() {
     });
 
     test('adds and removes songs through PlaylistManager commands', () async {
-      await databaseHelper.createPlaylist('Focus');
+      await playlistRepository.create('Focus');
       await viewModel.initialize();
 
       await viewModel.addSongToPlaylist('Focus', songs.first);

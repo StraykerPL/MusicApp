@@ -1,11 +1,11 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/playlist.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
+import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
 import 'package:strayker_music/Shared/input_security.dart';
 import 'package:strayker_music/Shared/storage_path_policy.dart';
 
@@ -29,14 +29,14 @@ final class SettingsCommandFailure extends SettingsCommandResult {
 
 final class SettingsViewModel extends ChangeNotifier {
   SettingsViewModel({
-    required DatabaseHelper databaseHelper,
+    required SettingsSnapshotRepository settingsSnapshotRepository,
     required PlaylistManager playlistManager,
     required int loadedSongCount,
-  })  : _databaseHelper = databaseHelper,
+  })  : _settingsSnapshotRepository = settingsSnapshotRepository,
         _playlistManager = playlistManager,
         playedSongsMaxAllowed = loadedSongCount > 1 ? loadedSongCount - 1 : 0;
 
-  final DatabaseHelper _databaseHelper;
+  final SettingsSnapshotRepository _settingsSnapshotRepository;
   final PlaylistManager _playlistManager;
 
   int _playedSongsMaxAmount = 0;
@@ -61,11 +61,11 @@ final class SettingsViewModel extends ChangeNotifier {
 
   /// Replaces local state from persistence during initial route loading.
   Future<void> load() async {
-    final snapshot = await _databaseHelper.getSettingsSnapshot();
+    final snapshot = await _settingsSnapshotRepository.get();
     final savedAmount = snapshot.playedSongsMaxAmount;
     _setPlayedSongsMaxAmount(savedAmount);
     if (_playedSongsMaxAmount != savedAmount) {
-      await _databaseHelper.updatePlayedSongsMaxAmount(
+      await _settingsSnapshotRepository.updatePlayedSongsMaxAmount(
         _playedSongsMaxAmount,
       );
     }
@@ -212,7 +212,7 @@ final class SettingsViewModel extends ChangeNotifier {
   }
 
   Future<void> _persistCurrentSettings() {
-    return _databaseHelper.saveSettingsSnapshot(
+    return _settingsSnapshotRepository.save(
       SettingsSnapshot(
         playedSongsMaxAmount: _playedSongsMaxAmount,
         storageLocations: List<String>.of(_storageLocations),

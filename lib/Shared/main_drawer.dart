@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:strayker_music/Business/database_helper.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
 import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
 import 'package:strayker_music/Widgets/settings.dart';
@@ -105,7 +105,8 @@ class _MainDrawer extends State<MainDrawer> {
           ListTile(
             title: const Text("Settings"),
             onTap: () async {
-              final databaseHelper = context.read<DatabaseHelper>();
+              final settingsSnapshotRepository =
+                  context.read<SettingsSnapshotRepository>();
               final playlistManager = context.read<PlaylistManager>();
               final loadedSongCount = context.read<List<MusicFile>>().length;
               await playlistViewModel.enterSettings();
@@ -121,7 +122,7 @@ class _MainDrawer extends State<MainDrawer> {
                   MaterialPageRoute(
                     builder: (_) => ChangeNotifierProvider(
                       create: (_) => SettingsViewModel(
-                        databaseHelper: databaseHelper,
+                        settingsSnapshotRepository: settingsSnapshotRepository,
                         playlistManager: playlistManager,
                         loadedSongCount: loadedSongCount,
                       )..load(),

@@ -3,8 +3,8 @@ import 'dart:collection';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:strayker_music/Business/playlist_manager.dart';
-import 'package:strayker_music/Business/sound_collection_manager.dart';
+import 'package:strayker_music/Services/playlist_manager.dart';
+import 'package:strayker_music/Services/sound_collection_manager.dart';
 import 'package:strayker_music/Models/music_file.dart';
 
 final class PlaylistViewModel extends ChangeNotifier {
