@@ -1,17 +1,38 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
 
 typedef DatabaseProvider = Future<Database> Function();
 
 class DatabaseHelper {
   static const _databaseName = 'strayker_music.db';
   static const _databaseVersion = 2;
+  static const String _settingsTableName = "settings";
+  static const String _storagePathsTableName = "storageLocations";
+  static const String _playlistsTableName = "playlists";
+  static const String _playlistSongsTableName = "playlistSongs";
+  static const String _playedSongsMaxAmountTableValueName =
+      "playedSongsMaxAmount";
+  static const List<String> _soundStorageLocationsDefault = [
+    "/storage/emulated/0/Music"
+  ];
+  static const int _playedSongsMaxAmountDefault = 0;
 
   DatabaseHelper({DatabaseProvider? databaseProvider})
       : _databaseProvider = databaseProvider ?? _openDatabase;
 
   final DatabaseProvider _databaseProvider;
+
+  static int getPlayedSongsMaxAmountDefault() {
+    return _playedSongsMaxAmountDefault;
+  }
+
+  static String getPlayedSongsMaxAmountTableValueName() {
+    return _playedSongsMaxAmountTableValueName;
+  }
+
+  static List<String> getSoundStorageLocationsDefault() {
+    return _soundStorageLocationsDefault;
+  }
 
   static Future<Database> _openDatabase() async {
     final dbPath = await getDatabasesPath();
@@ -44,31 +65,31 @@ class DatabaseHelper {
 
   static Future<void> _createSchema(DatabaseExecutor db) async {
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.settingsTableName} (
+      CREATE TABLE $_settingsTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         value TEXT NOT NULL
       )
     ''');
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.storagePathsTableName} (
+      CREATE TABLE $_storagePathsTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE
       )
     ''');
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.playlistsTableName} (
+      CREATE TABLE $_playlistsTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE
       )
     ''');
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.playlistSongsTableName} (
+      CREATE TABLE $_playlistSongsTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         playlistId INTEGER NOT NULL,
         songPath TEXT NOT NULL,
         FOREIGN KEY (playlistId)
-          REFERENCES ${DatabaseConstants.playlistsTableName} (id)
+          REFERENCES $_playlistsTableName (id)
           ON DELETE CASCADE,
         UNIQUE (playlistId, songPath)
       )
@@ -76,12 +97,12 @@ class DatabaseHelper {
   }
 
   static Future<void> _seedInitialValues(DatabaseExecutor db) async {
-    await db.insert(DatabaseConstants.settingsTableName, {
-      'name': DatabaseConstants.playedSongsMaxAmountTableValueName,
-      'value': DatabaseConstants.playedSongsMaxAmountDefault,
+    await db.insert(_settingsTableName, {
+      'name': _playedSongsMaxAmountTableValueName,
+      'value': _playedSongsMaxAmountDefault,
     });
-    await db.insert(DatabaseConstants.storagePathsTableName, {
-      'name': DatabaseConstants.soundStorageLocationsDefault.first,
+    await db.insert(_storagePathsTableName, {
+      'name': _soundStorageLocationsDefault.first,
     });
   }
 
@@ -91,7 +112,7 @@ class DatabaseHelper {
     }
     final batch = db.batch();
     for (final name in ['Playlist 1', 'Playlist 2', 'Playlist 3']) {
-      batch.insert(DatabaseConstants.playlistsTableName, {'name': name});
+      batch.insert(_playlistsTableName, {'name': name});
     }
     await batch.commit(noResult: true);
   }
@@ -142,13 +163,13 @@ class DatabaseHelper {
 
   Future<List<Map<String, Object?>>> queryPlaylists() async {
     final db = await _databaseProvider();
-    return db.query(DatabaseConstants.playlistsTableName);
+    return db.query(_playlistsTableName);
   }
 
   Future<Map<String, Object?>?> queryPlaylistByName(String name) async {
     final db = await _databaseProvider();
     final rows = await db.query(
-      DatabaseConstants.playlistsTableName,
+      _playlistsTableName,
       where: 'name = ?',
       whereArgs: [name],
       limit: 1,
@@ -158,19 +179,19 @@ class DatabaseHelper {
 
   Future<int> insertPlaylist(String name) async {
     final db = await _databaseProvider();
-    return db.insert(DatabaseConstants.playlistsTableName, {'name': name});
+    return db.insert(_playlistsTableName, {'name': name});
   }
 
   Future<void> deletePlaylist(int playlistId) async {
     final db = await _databaseProvider();
     await db.transaction((transaction) async {
       await transaction.delete(
-        DatabaseConstants.playlistSongsTableName,
+        _playlistSongsTableName,
         where: 'playlistId = ?',
         whereArgs: [playlistId],
       );
       await transaction.delete(
-        DatabaseConstants.playlistsTableName,
+        _playlistsTableName,
         where: 'id = ?',
         whereArgs: [playlistId],
       );
@@ -180,7 +201,7 @@ class DatabaseHelper {
   Future<List<String>> queryPlaylistSongPaths(int playlistId) async {
     final db = await _databaseProvider();
     final rows = await db.query(
-      DatabaseConstants.playlistSongsTableName,
+      _playlistSongsTableName,
       columns: ['songPath'],
       where: 'playlistId = ?',
       whereArgs: [playlistId],
@@ -190,7 +211,7 @@ class DatabaseHelper {
 
   Future<void> insertPlaylistSong(int playlistId, String songPath) async {
     final db = await _databaseProvider();
-    await db.insert(DatabaseConstants.playlistSongsTableName, {
+    await db.insert(_playlistSongsTableName, {
       'playlistId': playlistId,
       'songPath': songPath,
     });
@@ -199,7 +220,7 @@ class DatabaseHelper {
   Future<void> deletePlaylistSong(int playlistId, String songPath) async {
     final db = await _databaseProvider();
     await db.delete(
-      DatabaseConstants.playlistSongsTableName,
+      _playlistSongsTableName,
       where: 'playlistId = ? AND songPath = ?',
       whereArgs: [playlistId, songPath],
     );
@@ -211,7 +232,7 @@ class DatabaseHelper {
   ) async {
     final db = await _databaseProvider();
     final rows = await db.query(
-      DatabaseConstants.playlistSongsTableName,
+      _playlistSongsTableName,
       columns: ['id'],
       where: 'playlistId = ? AND songPath = ?',
       whereArgs: [playlistId, songPath],
@@ -226,8 +247,8 @@ class DatabaseHelper {
     final db = await _databaseProvider();
     return db.rawQuery('''
       SELECT playlists.id, playlists.name
-      FROM ${DatabaseConstants.playlistsTableName} playlists
-      INNER JOIN ${DatabaseConstants.playlistSongsTableName} songs
+      FROM $_playlistsTableName playlists
+      INNER JOIN $_playlistSongsTableName songs
         ON songs.playlistId = playlists.id
       WHERE songs.songPath = ?
     ''', [songPath]);
@@ -236,10 +257,10 @@ class DatabaseHelper {
   Future<Map<String, Object?>?> queryPlayedSongsMaxAmount() async {
     final db = await _databaseProvider();
     final rows = await db.query(
-      DatabaseConstants.settingsTableName,
+      _settingsTableName,
       columns: ['value'],
       where: 'name = ?',
-      whereArgs: [DatabaseConstants.playedSongsMaxAmountTableValueName],
+      whereArgs: [_playedSongsMaxAmountTableValueName],
       limit: 1,
     );
     return rows.isEmpty ? null : rows.first;
@@ -248,7 +269,7 @@ class DatabaseHelper {
   Future<List<String>> queryStorageLocations() async {
     final db = await _databaseProvider();
     final rows = await db.query(
-      DatabaseConstants.storagePathsTableName,
+      _storagePathsTableName,
       columns: ['name'],
     );
     return [for (final row in rows) row['name'] as String];
@@ -257,10 +278,10 @@ class DatabaseHelper {
   Future<void> updatePlayedSongsMaxAmount(int value) async {
     final db = await _databaseProvider();
     await db.update(
-      DatabaseConstants.settingsTableName,
+      _settingsTableName,
       {'value': value},
       where: 'name = ?',
-      whereArgs: [DatabaseConstants.playedSongsMaxAmountTableValueName],
+      whereArgs: [_playedSongsMaxAmountTableValueName],
     );
   }
 
@@ -271,15 +292,15 @@ class DatabaseHelper {
     final db = await _databaseProvider();
     await db.transaction((transaction) async {
       await transaction.update(
-        DatabaseConstants.settingsTableName,
+        _settingsTableName,
         {'value': playedSongsMaxAmount},
         where: 'name = ?',
-        whereArgs: [DatabaseConstants.playedSongsMaxAmountTableValueName],
+        whereArgs: [_playedSongsMaxAmountTableValueName],
       );
-      await transaction.delete(DatabaseConstants.storagePathsTableName);
+      await transaction.delete(_storagePathsTableName);
       final batch = transaction.batch();
       for (final path in storageLocations) {
-        batch.insert(DatabaseConstants.storagePathsTableName, {'name': path});
+        batch.insert(_storagePathsTableName, {'name': path});
       }
       await batch.commit(noResult: true);
     });

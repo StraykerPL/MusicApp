@@ -1,8 +1,8 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:strayker_music/Services/database_helper.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
-import 'package:strayker_music/Constants/database_constants.dart';
 import 'package:strayker_music/Models/playlist.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
 import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
@@ -191,11 +191,9 @@ final class SettingsViewModel extends ChangeNotifier {
 
     _setPersistenceInProgress(true);
     try {
-      _playedSongsMaxAmount = DatabaseConstants.playedSongsMaxAmountDefault;
+      _playedSongsMaxAmount = DatabaseHelper.getPlayedSongsMaxAmountDefault();
       _playedSongsMaxAmountText = _playedSongsMaxAmount.toString();
-      _storageLocations = List<String>.of(
-        DatabaseConstants.soundStorageLocationsDefault,
-      );
+      _storageLocations = DatabaseHelper.getSoundStorageLocationsDefault();
       _selectedStoragePath = null;
       _notifyListeners();
       await _persistCurrentSettings();

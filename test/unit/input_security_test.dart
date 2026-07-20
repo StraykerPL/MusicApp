@@ -13,7 +13,8 @@ void main() {
         InputSecurity.isSafeUserText('name; DROP TABLE playlists'),
         isFalse,
       );
-      expect(InputSecurity.isSafeUserText('<script>alert(1)</script>'), isFalse);
+      expect(
+          InputSecurity.isSafeUserText('<script>alert(1)</script>'), isFalse);
       expect(InputSecurity.isSafeUserText('test OR 1=1'), isFalse);
       expect(InputSecurity.isSafeUserText('playlist && rm -rf /'), isFalse);
     });
