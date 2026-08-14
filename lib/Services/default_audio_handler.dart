@@ -8,76 +8,68 @@ typedef AudioSessionProvider = Future<AudioSession> Function();
 typedef NotificationSkipHandler = Future<void> Function();
 
 final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
+  DefaultAudioHandler._({
+    required AudioPlayer player,
+    required AudioSession session,
+  })  : _player = player,
+        _session = session {
+    _interruptionSubscription =
+        _session.interruptionEventStream.listen(_onInterruption);
+    _noisySubscription = _session.becomingNoisyEventStream
+        .listen((void event) => _pauseSafely());
+    _deviceSubscription = _session.devicesChangedEventStream.listen(
+      (AudioDevicesChangedEvent event) => _pauseSafely(),
+    );
+    _player.playbackEventStream.map(transformEvent).pipe(playbackState);
+  }
+
   final AudioPlayer _player;
-  final AudioSessionProvider _sessionProvider;
+  final AudioSession _session;
+  StreamSubscription<AudioInterruptionEvent>? _interruptionSubscription;
+  StreamSubscription<void>? _noisySubscription;
+  StreamSubscription<AudioDevicesChangedEvent>? _deviceSubscription;
   NotificationSkipHandler? _skipToNextHandler;
   NotificationSkipHandler? _skipToPreviousHandler;
   bool _isPlaybackSessionActive = true;
-  late AudioSession _session;
-  late StreamSubscription<void> _noisyCheckStream;
-  late StreamSubscription<AudioInterruptionEvent> _interruptEventStream;
-  late StreamSubscription<AudioDevicesChangedEvent> _deviceChangeEventStream;
+  bool _disposed = false;
+  int _playRequest = 0;
+
   bool get isLoopModeOn => _player.loopMode == LoopMode.all;
   Stream<bool> get playingStream => _player.playingStream;
 
-  DefaultAudioHandler({
+  static Future<DefaultAudioHandler> create({
     AudioPlayer? player,
     AudioSessionProvider? sessionProvider,
-  })  : _player = player ?? AudioPlayer(),
-        _sessionProvider = sessionProvider ?? (() => AudioSession.instance) {
-    _player.playbackEventStream.map(transformEvent).pipe(playbackState);
-    _sessionProvider().then((session) {
-      session.configure(const AudioSessionConfiguration.music());
-      _session = session;
+  }) async {
+    final AudioPlayer resolvedPlayer = player ?? AudioPlayer();
+    final AudioSessionProvider resolvedSessionProvider =
+        sessionProvider ?? (() => AudioSession.instance);
 
-      _interruptEventStream =
-          _session.interruptionEventStream.listen((event) async {
-        if (event.begin) {
-          switch (event.type) {
-            case AudioInterruptionType.duck:
-              await _player.setVolume(_player.volume / 2);
-              break;
+    try {
+      final AudioSession session = await resolvedSessionProvider();
+      await session.configure(const AudioSessionConfiguration.music());
 
-            case AudioInterruptionType.pause:
-            case AudioInterruptionType.unknown:
-              await _player.pause();
-              break;
-          }
-        } else {
-          switch (event.type) {
-            case AudioInterruptionType.duck:
-              await _player.setVolume(1.0);
-              break;
-
-            case AudioInterruptionType.pause:
-            case AudioInterruptionType.unknown:
-              break;
-          }
-        }
-      });
-
-      _noisyCheckStream = session.becomingNoisyEventStream.listen((_) async {
-        await _player.pause();
-      });
-
-      _deviceChangeEventStream =
-          session.devicesChangedEventStream.listen((event) async {
-        await _player.pause();
-      });
-    });
+      return DefaultAudioHandler._(
+        player: resolvedPlayer,
+        session: session,
+      );
+    } on Object catch (error, stackTrace) {
+      await resolvedPlayer.dispose();
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   PlaybackState transformEvent(PlaybackEvent event) {
     return PlaybackState(
       controls: _isPlaybackSessionActive
-          ? [
+          ? <MediaControl>[
               _player.playing ? MediaControl.pause : MediaControl.play,
               MediaControl.stop,
               MediaControl.skipToPrevious,
               MediaControl.skipToNext,
             ]
-          : const [],
-      processingState: const {
+          : const <MediaControl>[],
+      processingState: const <ProcessingState, AudioProcessingState>{
         ProcessingState.idle: AudioProcessingState.idle,
         ProcessingState.loading: AudioProcessingState.loading,
         ProcessingState.buffering: AudioProcessingState.buffering,
@@ -88,24 +80,26 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
     );
   }
 
-  // These overrides are not being used by code,
-  // but they are necessary for notification panel's widget to work.
   @override
   Future<void> play() async {
-    if (_isPlaybackSessionActive) {
+    if (_isPlaybackSessionActive && !_disposed) {
       await _player.play();
     }
   }
 
   @override
   Future<void> pause() async {
-    if (_isPlaybackSessionActive) {
+    if (_isPlaybackSessionActive && !_disposed) {
       await _player.pause();
     }
   }
 
   @override
   Future<void> stop() async {
+    if (_disposed) {
+      return;
+    }
+    ++_playRequest;
     _isPlaybackSessionActive = false;
     await _player.stop();
     await _session.setActive(false);
@@ -114,18 +108,17 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
 
   @override
   Future<void> skipToNext() async {
-    if (_isPlaybackSessionActive) {
+    if (_isPlaybackSessionActive && !_disposed) {
       await _skipToNextHandler?.call();
     }
   }
 
   @override
   Future<void> skipToPrevious() async {
-    if (_isPlaybackSessionActive) {
+    if (_isPlaybackSessionActive && !_disposed) {
       await _skipToPreviousHandler?.call();
     }
   }
-  // End of widget handling code.
 
   void setNotificationSkipHandlers({
     NotificationSkipHandler? skipToNext,
@@ -136,21 +129,49 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
   }
 
   Future<void> playNew(MediaItem item, String path) async {
-    if (await _session.setActive(true)) {
+    if (_disposed) {
+      return;
+    }
+
+    final int request = ++_playRequest;
+    try {
+      final bool sessionActivated = await _session.setActive(true);
+      if (!sessionActivated || request != _playRequest || _disposed) {
+        return;
+      }
+
+      final AudioSource source = AudioSource.file(path, tag: item);
+      await _player.setAudioSource(source);
+      if (request != _playRequest || _disposed) {
+        return;
+      }
+
       _isPlaybackSessionActive = true;
-      try {
-        mediaItem.add(item);
-        await _player.setAudioSource(AudioSource.file(path, tag: item));
-      } on PlayerInterruptedException catch (_) {}
+      mediaItem.add(item);
       await _player.play();
+    } on PlayerInterruptedException {
+      return;
+    } on PlayerException catch (error, stackTrace) {
+      if (request == _playRequest && !_disposed) {
+        mediaItem.add(null);
+        _isPlaybackSessionActive = false;
+      }
+
+      Error.throwWithStackTrace(error, stackTrace);
+    } on Object catch (error, stackTrace) {
+      if (request == _playRequest && !_disposed) {
+        mediaItem.add(null);
+        _isPlaybackSessionActive = false;
+      }
+
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 
   Future<void> resumeOrPauseSong() async {
-    if (!_isPlaybackSessionActive) {
+    if (!_isPlaybackSessionActive || _disposed) {
       return;
     }
-
     if (_player.playing) {
       await _player.pause();
     } else {
@@ -159,13 +180,53 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
   }
 
   Future<void> setLoopMode(bool enabled) async {
-    await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
+    if (!_disposed) {
+      await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
+    }
+  }
+
+  Future<void> _onInterruption(AudioInterruptionEvent event) async {
+    if (_disposed) {
+      return;
+    }
+    if (event.begin) {
+      switch (event.type) {
+        case AudioInterruptionType.duck:
+          await _player.setVolume(_player.volume / 2);
+          break;
+        case AudioInterruptionType.pause:
+        case AudioInterruptionType.unknown:
+          await _pauseSafely();
+          break;
+      }
+    } else if (event.type == AudioInterruptionType.duck) {
+      await _player.setVolume(1.0);
+    }
+  }
+
+  Future<void> _pauseSafely() async {
+    if (!_disposed) {
+      await _player.pause();
+    }
   }
 
   Future<void> dispose() async {
+    if (_disposed) {
+      return;
+    }
+
+    _disposed = true;
+    ++_playRequest;
+    _skipToNextHandler = null;
+    _skipToPreviousHandler = null;
+
+    await _interruptionSubscription?.cancel();
+    await _noisySubscription?.cancel();
+    await _deviceSubscription?.cancel();
     await _player.dispose();
-    await _noisyCheckStream.cancel();
-    await _interruptEventStream.cancel();
-    await _deviceChangeEventStream.cancel();
+
+    _interruptionSubscription = null;
+    _noisySubscription = null;
+    _deviceSubscription = null;
   }
 }

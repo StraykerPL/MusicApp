@@ -7,10 +7,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:strayker_music/Services/default_audio_handler.dart';
+import 'package:strayker_music/Services/music_library_service.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Services/sound_collection_manager.dart';
 import 'package:strayker_music/Services/sound_player.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Models/music_scan_result.dart';
+import 'package:strayker_music/Repositories/music_file_repository.dart';
 import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 import 'package:strayker_music/Widgets/playlist_view.dart';
 
@@ -18,6 +21,25 @@ import 'helpers/music_file_test_helper.dart';
 import 'mocks/fake_view_database_helpers.dart';
 
 class MockSoundPlayer extends Mock implements SoundPlayer {}
+
+class FakeMusicFileRepository extends MusicFileRepository {
+  FakeMusicFileRepository(this.songs);
+
+  final List<MusicFile> songs;
+  Object? error;
+
+  @override
+  Future<MusicScanResult> getAll(List<String> storageLocations) async {
+    final currentError = error;
+    if (currentError != null) {
+      throw currentError;
+    }
+    return MusicScanResult(
+      songs: songs,
+      skippedLocations: const <String>[],
+    );
+  }
+}
 
 class RecreatingPlaylistHost extends StatefulWidget {
   const RecreatingPlaylistHost({super.key});
@@ -50,6 +72,8 @@ void main() {
     late PlaylistManager playlistManager;
     late MockSoundPlayer soundPlayer;
     late SoundCollectionManager soundCollectionManager;
+    late MusicLibraryService musicLibraryService;
+    late FakeMusicFileRepository musicFileRepository;
     late PlaylistViewModel playlistViewModel;
     late StreamController<PlaybackState> playbackStates;
     late StreamController<bool> playingStates;
@@ -82,9 +106,15 @@ void main() {
         player: soundPlayer,
         settingsSnapshotRepository: settingsSnapshotRepository,
       );
+      musicFileRepository = FakeMusicFileRepository(songs);
+      musicLibraryService = MusicLibraryService(
+        musicFileRepository: musicFileRepository,
+        settingsSnapshotRepository: settingsSnapshotRepository,
+      );
       playlistViewModel = PlaylistViewModel(
         playlistManager: playlistManager,
         soundCollectionManager: soundCollectionManager,
+        musicLibraryService: musicLibraryService,
       );
       playbackStates = StreamController<PlaybackState>.broadcast();
       var latestPlayingState = false;
@@ -129,7 +159,6 @@ void main() {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
-            Provider<List<MusicFile>>.value(value: songs),
             ListenableProvider<PlaylistManager>.value(value: playlistManager),
             Provider<SoundPlayer>.value(value: soundPlayer),
             Provider<SoundCollectionManager>.value(
@@ -171,6 +200,19 @@ void main() {
       expect(find.text('alpha'), findsOneWidget);
       expect(find.text('beta'), findsOneWidget);
       expect(find.text('gamma'), findsOneWidget);
+    });
+
+    testWidgets('initial scan failure renders a retryable in-app error',
+        (tester) async {
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = (_) {};
+      addTearDown(() => FlutterError.onError = previousOnError);
+      musicFileRepository.error = StateError('storage offline');
+
+      await pumpPlaylistView(tester);
+
+      expect(find.textContaining('storage offline'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Try again'), findsOneWidget);
     });
 
     testWidgets('playlist selection changes the title and displayed songs',
@@ -224,7 +266,7 @@ void main() {
       );
       await tester.pump();
 
-      verify(() => soundPlayer.playNewSong(songs.first)).called(1);
+      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
       expect(find.byIcon(Icons.music_note), findsNWidgets(2));
     });
 
@@ -245,8 +287,8 @@ void main() {
       await skipToPrevious!();
       await tester.pump();
 
+      verify(() => soundPlayer.playNewSong(songs[1])).called(1);
       verify(() => soundPlayer.playNewSong(songs.first)).called(1);
-      verify(() => soundPlayer.playNewSong(songs.last)).called(1);
     });
 
     testWidgets('player stream keeps notification pause in sync with the UI',
@@ -287,7 +329,6 @@ void main() {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
-            Provider<List<MusicFile>>.value(value: songs),
             ListenableProvider<PlaylistManager>.value(value: playlistManager),
             Provider<SoundPlayer>.value(value: soundPlayer),
             Provider<SoundCollectionManager>.value(

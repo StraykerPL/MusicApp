@@ -4,6 +4,7 @@ import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:strayker_music/Shared/input_security.dart';
 import 'package:strayker_music/Shared/storage_path_policy.dart';
@@ -148,7 +149,7 @@ class _SettingsViewState extends State<SettingsView> {
       itemBuilder: (context, index) {
         final playlist = viewModel.playlists[index];
         final playlistName = playlist.name;
-        final isAllFiles = playlistName == 'All Files';
+        final isAllFiles = playlistName == Constants.allFilesListName;
 
         return ListTile(
           title: Text(
@@ -302,7 +303,8 @@ class _SettingsViewState extends State<SettingsView> {
                         ),
                         ElevatedButton(
                           onPressed: viewModel.selectedPlaylistName != null &&
-                                  viewModel.selectedPlaylistName != 'All Files'
+                                  viewModel.selectedPlaylistName !=
+                                      Constants.allFilesListName
                               ? _deletePlaylist
                               : null,
                           child: Text(

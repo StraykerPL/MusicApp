@@ -5,7 +5,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Constants/constants.dart';
-import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
 import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
@@ -107,8 +106,6 @@ class _MainDrawer extends State<MainDrawer> {
             onTap: () async {
               final settingsSnapshotRepository =
                   context.read<SettingsSnapshotRepository>();
-              final playlistManager = context.read<PlaylistManager>();
-              final loadedSongCount = context.read<List<MusicFile>>().length;
               await playlistViewModel.enterSettings();
 
               if (!context.mounted) {
@@ -123,8 +120,8 @@ class _MainDrawer extends State<MainDrawer> {
                     builder: (_) => ChangeNotifierProvider(
                       create: (_) => SettingsViewModel(
                         settingsSnapshotRepository: settingsSnapshotRepository,
-                        playlistManager: playlistManager,
-                        loadedSongCount: loadedSongCount,
+                        playlistManager: context.read<PlaylistManager>(),
+                        loadedSongCount: playlistViewModel.allSongs.length,
                       )..load(),
                       child: const SettingsView(),
                     ),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/playlist.dart';
 
@@ -23,8 +24,8 @@ void main() {
         ],
       );
 
-      expect(manager.currentPlaylist, 'All Files');
-      expect(manager.availablePlaylists, ['All Files']);
+      expect(manager.currentPlaylist, Constants.allFilesListName);
+      expect(manager.availablePlaylists, [Constants.allFilesListName]);
       expect(
         manager.currentPlaylistSongs.map((song) => song.name).toList(),
         ['alpha', 'mango', 'zebra'],
@@ -43,7 +44,8 @@ void main() {
       final result = await manager.createPlaylist('Road Trip');
 
       expect(result, 1);
-      expect(manager.availablePlaylists, ['All Files', 'Road Trip']);
+      expect(manager.availablePlaylists,
+          [Constants.allFilesListName, 'Road Trip']);
       expect(notifications, 1);
     });
 
@@ -102,8 +104,8 @@ void main() {
         allSongs: songs,
       );
 
-      final allFilesSongs =
-          await manager.getPlaylistSongsByName('All Files', songs);
+      final allFilesSongs = await manager.getPlaylistSongsByName(
+          Constants.allFilesListName, songs);
       final missingPlaylistSongs =
           await manager.getPlaylistSongsByName('Missing', songs);
 
@@ -174,8 +176,8 @@ void main() {
 
       await manager.deletePlaylistByName('Focus');
 
-      expect(manager.currentPlaylist, 'All Files');
-      expect(manager.availablePlaylists, ['All Files']);
+      expect(manager.currentPlaylist, Constants.allFilesListName);
+      expect(manager.availablePlaylists, [Constants.allFilesListName]);
       expect(
         manager.currentPlaylistSongs.map((song) => song.filePath).toList(),
         ['/music/alpha.mp3', '/music/beta.mp3'],
@@ -192,8 +194,8 @@ void main() {
       final playlistId = (await playlistRepository.create('Focus')).id;
       await playlistRepository.addSong(playlistId, '/music/beta.mp3');
 
-      final inAllFiles =
-          await manager.isSongInPlaylist('All Files', '/music/alpha.mp3');
+      final inAllFiles = await manager.isSongInPlaylist(
+          Constants.allFilesListName, '/music/alpha.mp3');
       final inFocus =
           await manager.isSongInPlaylist('Focus', '/music/beta.mp3');
       final missing =

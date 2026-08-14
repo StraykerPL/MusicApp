@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Models/music_load_status.dart';
 import 'package:strayker_music/Shared/create_search_inputbox.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:strayker_music/Shared/main_drawer.dart';
@@ -40,8 +41,8 @@ class _PlaylistView extends State<PlaylistView> {
   }
 
   Future<void> _showAddToPlaylistDialog(MusicFile musicFile) async {
-    final viewModel = context.read<PlaylistViewModel>();
-    final playlists = await viewModel.getNamedPlaylistNames();
+    final playlists =
+        await context.read<PlaylistViewModel>().getNamedPlaylistNames();
 
     if (!mounted) {
       return;
@@ -51,6 +52,7 @@ class _PlaylistView extends State<PlaylistView> {
       _showErrorSnackBar(
         'No playlists available. Create a playlist in Settings first.',
       );
+
       return;
     }
 
@@ -58,7 +60,7 @@ class _PlaylistView extends State<PlaylistView> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Add "${musicFile.name}" to playlist'),
+          title: const Text('Select a playlist to add to'),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -185,6 +187,7 @@ class _PlaylistView extends State<PlaylistView> {
     PlaylistViewModel viewModel,
   ) {
     int index = 0;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -196,6 +199,12 @@ class _PlaylistView extends State<PlaylistView> {
                   );
                   if (index != indexCalc) {
                     index = indexCalc;
+                    // Calculating, where to jump.
+                    // This fancy formula calculate value based on single
+                    // songbox's height in songs list on main view,
+                    // considering banner's height and centering view
+                    // on given song, that is currently playing.
+                    // TODO: This calculation should be moved to some better place (helper?)
                     final padding = MediaQuery.of(context).viewPadding;
                     _musicListScrollControl.jumpTo(
                       (index * 60) -
@@ -287,6 +296,7 @@ class _PlaylistView extends State<PlaylistView> {
       itemCount: displayedSongs.length,
       itemBuilder: (context, index) {
         final song = displayedSongs[index];
+
         return ListTile(
           minTileHeight: 60,
           title: Text(
@@ -315,11 +325,39 @@ class _PlaylistView extends State<PlaylistView> {
   Widget build(BuildContext context) {
     final viewModel = context.watch<PlaylistViewModel>();
 
+    if (viewModel.musicLoadStatus == MusicLoadStatus.initial ||
+        viewModel.musicLoadStatus == MusicLoadStatus.loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (viewModel.musicLoadStatus == MusicLoadStatus.failed) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Unable to load the music library: '
+                '${viewModel.musicLoadError}',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: viewModel.retryInitialMusicLoad,
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: viewModel.currentPlaylistName ==
-                PlaylistViewModel.allFilesPlaylistName
+        title: viewModel.currentPlaylistName == Constants.allFilesListName
             ? const Text(Constants.appName)
             : Text(viewModel.currentPlaylistName),
       ),

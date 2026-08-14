@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:strayker_music/Services/default_audio_handler.dart';
 
 import '../helpers/audio_test_helpers.dart';
 import '../helpers/handler_harness.dart';
@@ -17,6 +21,60 @@ void main() {
   });
 
   group('DefaultAudioHandler', () {
+    test('factory waits for audio session configuration', () async {
+      final player = MockAudioPlayer();
+      final session = MockAudioSession();
+      final configureCompleter = Completer<void>();
+      final playbackEvents = StreamController<PlaybackEvent>.broadcast();
+      final interruptions =
+          StreamController<AudioInterruptionEvent>.broadcast();
+      final noisy = StreamController<void>.broadcast();
+      final devices = StreamController<AudioDevicesChangedEvent>.broadcast();
+      addTearDown(playbackEvents.close);
+      addTearDown(interruptions.close);
+      addTearDown(noisy.close);
+      addTearDown(devices.close);
+      when(() => player.dispose()).thenAnswer((_) async {});
+      when(() => player.playbackEventStream)
+          .thenAnswer((_) => playbackEvents.stream);
+      when(() => session.configure(any()))
+          .thenAnswer((_) => configureCompleter.future);
+      when(() => session.interruptionEventStream)
+          .thenAnswer((_) => interruptions.stream);
+      when(() => session.becomingNoisyEventStream)
+          .thenAnswer((_) => noisy.stream);
+      when(() => session.devicesChangedEventStream)
+          .thenAnswer((_) => devices.stream);
+
+      var completed = false;
+      final future = DefaultAudioHandler.create(
+        player: player,
+        sessionProvider: () async => session,
+      )..then((_) => completed = true);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(completed, isFalse);
+      configureCompleter.complete();
+      final handler = await future;
+      expect(completed, isTrue);
+      await handler.dispose();
+    });
+
+    test('factory disposes its player when session setup fails', () async {
+      final player = MockAudioPlayer();
+      when(() => player.dispose()).thenAnswer((_) async {});
+
+      await expectLater(
+        DefaultAudioHandler.create(
+          player: player,
+          sessionProvider: () async => throw StateError('no session'),
+        ),
+        throwsStateError,
+      );
+
+      verify(() => player.dispose()).called(1);
+    });
+
     test('transformEvent exposes play control when player is idle and paused',
         () async {
       final harness = await HandlerHarness.create(
@@ -151,6 +209,77 @@ void main() {
       expect(harness.handler.mediaItem.value, isNull);
     });
 
+    test('stop invalidates a pending source request', () async {
+      final harness = await HandlerHarness.create();
+      addTearDown(harness.close);
+      final sourceLoad = Completer<Duration?>();
+      when(() => harness.player.setAudioSource(any()))
+          .thenAnswer((_) => sourceLoad.future);
+
+      final playFuture = harness.handler.playNew(
+        const MediaItem(id: 'pending', title: 'Pending'),
+        '/music/pending.mp3',
+      );
+      await untilCalled(() => harness.player.setAudioSource(any()));
+      await harness.handler.stop();
+      sourceLoad.complete(null);
+      await playFuture;
+
+      verifyNever(() => harness.player.play());
+      expect(harness.handler.mediaItem.value, isNull);
+    });
+
+    test('interrupted older request never plays or clears the newer song',
+        () async {
+      final harness = await HandlerHarness.create();
+      addTearDown(harness.close);
+      final firstLoad = Completer<Duration?>();
+      var sourceCalls = 0;
+      when(() => harness.player.setAudioSource(any())).thenAnswer((_) {
+        sourceCalls++;
+        if (sourceCalls == 1) {
+          return firstLoad.future;
+        }
+        return Future<Duration?>.value();
+      });
+      const first = MediaItem(id: 'first', title: 'First');
+      const second = MediaItem(id: 'second', title: 'Second');
+
+      final firstFuture = harness.handler.playNew(first, '/music/first.mp3');
+      await untilCalled(() => harness.player.setAudioSource(any()));
+      await harness.handler.playNew(second, '/music/second.mp3');
+      firstLoad.completeError(PlayerInterruptedException('superseded'));
+      await firstFuture;
+
+      verify(() => harness.player.play()).called(1);
+      expect(harness.handler.mediaItem.value, second);
+    });
+
+    test('source failures never play and propagate for the latest request',
+        () async {
+      final harness = await HandlerHarness.create();
+      addTearDown(harness.close);
+      final errors = <Object>[
+        PlayerException(7, 'bad source'),
+        const FileSystemException('missing file'),
+      ];
+
+      for (final error in errors) {
+        when(() => harness.player.setAudioSource(any())).thenThrow(error);
+
+        await expectLater(
+          harness.handler.playNew(
+            const MediaItem(id: 'broken', title: 'Broken'),
+            '/music/broken.mp3',
+          ),
+          throwsA(same(error)),
+        );
+      }
+
+      verifyNever(() => harness.player.play());
+      expect(harness.handler.mediaItem.value, isNull);
+    });
+
     test('resumeOrPauseSong pauses when player is already playing', () async {
       final harness = await HandlerHarness.create(isPlaying: true);
       addTearDown(harness.close);
@@ -223,6 +352,16 @@ void main() {
 
       verify(() => harness.player.dispose()).called(1);
       verifyNever(() => harness.player.pause());
+      await harness.closeControllers();
+    });
+
+    test('dispose is idempotent', () async {
+      final harness = await HandlerHarness.create();
+
+      await harness.handler.dispose();
+      await harness.handler.dispose();
+
+      verify(() => harness.player.dispose()).called(1);
       await harness.closeControllers();
     });
   });

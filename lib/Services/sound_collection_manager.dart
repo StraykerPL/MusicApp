@@ -87,6 +87,14 @@ final class SoundCollectionManager {
     );
   }
 
+  void reconcileSongs(List<MusicFile> availableSongs) {
+    final Set<String> availablePaths =
+        availableSongs.map((MusicFile song) => song.filePath).toSet();
+    _playedSongs.removeWhere(
+      (MusicFile song) => !availablePaths.contains(song.filePath),
+    );
+  }
+
   MusicFile _getRandomMusicFile(List<MusicFile> availableSongs) {
     return availableSongs[_random.nextInt(availableSongs.length)];
   }

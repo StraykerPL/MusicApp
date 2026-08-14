@@ -3,39 +3,59 @@ import 'dart:collection';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:strayker_music/Constants/constants.dart';
+import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Models/music_load_status.dart';
+import 'package:strayker_music/Models/music_scan_result.dart';
+import 'package:strayker_music/Services/music_library_service.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Services/sound_collection_manager.dart';
-import 'package:strayker_music/Models/music_file.dart';
 
 final class PlaylistViewModel extends ChangeNotifier {
-  static const String allFilesPlaylistName = 'All Files';
-
   PlaylistViewModel({
     required PlaylistManager playlistManager,
     required SoundCollectionManager soundCollectionManager,
+    required MusicLibraryService musicLibraryService,
   })  : _playlistManager = playlistManager,
-        _soundCollectionManager = soundCollectionManager;
+        _soundCollectionManager = soundCollectionManager,
+        _musicLibraryService = musicLibraryService;
 
   final PlaylistManager _playlistManager;
   final SoundCollectionManager _soundCollectionManager;
+  final MusicLibraryService _musicLibraryService;
 
+  List<MusicFile> _allSongs = <MusicFile>[];
+  MusicLoadStatus _musicLoadStatus = MusicLoadStatus.initial;
+  Object? _musicLoadError;
+  Object? _playbackError;
+  List<String> _skippedStorageLocations = <String>[];
+  Future<void>? _musicLoadInFlight;
   StreamSubscription<PlaybackState>? _playbackSubscription;
   MusicFile? _currentSong;
   bool _isSearchVisible = false;
   bool _isLoopModeOn = false;
   bool _isPlaybackAvailable = true;
+  bool _suppressPlaylistNotification = false;
   String _searchQuery = '';
   bool _initialized = false;
   bool _disposed = false;
 
+  UnmodifiableListView<MusicFile> get allSongs =>
+      UnmodifiableListView<MusicFile>(_allSongs);
+  MusicLoadStatus get musicLoadStatus => _musicLoadStatus;
+  Object? get musicLoadError => _musicLoadError;
+  Object? get playbackError => _playbackError;
+  UnmodifiableListView<String> get skippedStorageLocations =>
+      UnmodifiableListView<String>(_skippedStorageLocations);
   String get currentPlaylistName => _playlistManager.currentPlaylist;
   UnmodifiableListView<String> get availablePlaylists =>
-      UnmodifiableListView(_playlistManager.availablePlaylists);
+      UnmodifiableListView<String>(_playlistManager.availablePlaylists);
   UnmodifiableListView<MusicFile> get songs =>
-      UnmodifiableListView(_playlistManager.currentPlaylistSongs);
-  UnmodifiableListView<MusicFile> get displayedSongs => UnmodifiableListView(
+      UnmodifiableListView<MusicFile>(_playlistManager.currentPlaylistSongs);
+  UnmodifiableListView<MusicFile> get displayedSongs =>
+      UnmodifiableListView<MusicFile>(
         _playlistManager.currentPlaylistSongs.where(
-          (song) =>
+          (MusicFile song) =>
               song.name.toUpperCase().contains(_searchQuery.toUpperCase()),
         ),
       );
@@ -50,8 +70,9 @@ final class PlaylistViewModel extends ChangeNotifier {
       _currentSong != null &&
       songs.contains(_currentSong);
   bool get canShuffle => _isPlaybackAvailable && songs.isNotEmpty;
-  bool get canRemoveSongs => currentPlaylistName != allFilesPlaylistName;
-  bool get showsLoopControl => currentPlaylistName != allFilesPlaylistName;
+  bool get canRemoveSongs => currentPlaylistName != Constants.allFilesListName;
+  bool get showsLoopControl =>
+      currentPlaylistName != Constants.allFilesListName;
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -69,8 +90,88 @@ final class PlaylistViewModel extends ChangeNotifier {
     );
 
     await _soundCollectionManager.setLoopMode(true);
+    await _loadMusicLibrary();
     await _playlistManager.loadAvailablePlaylists();
     _notifyListeners();
+  }
+
+  Future<void> retryInitialMusicLoad() async {
+    if (_musicLoadStatus != MusicLoadStatus.failed) {
+      return;
+    }
+
+    await _loadMusicLibrary();
+  }
+
+  Future<void> _loadMusicLibrary() {
+    final Future<void>? activeLoad = _musicLoadInFlight;
+    if (activeLoad != null) {
+      return activeLoad;
+    }
+
+    final Future<void> newLoad = _performMusicLoad();
+    _musicLoadInFlight = newLoad;
+
+    return newLoad.whenComplete(() {
+      if (identical(_musicLoadInFlight, newLoad)) {
+        _musicLoadInFlight = null;
+      }
+    });
+  }
+
+  Future<void> _performMusicLoad() async {
+    _musicLoadStatus = MusicLoadStatus.loading;
+    _musicLoadError = null;
+    _notifyListeners();
+
+    try {
+      final MusicScanResult result = await _musicLibraryService.loadMusic();
+      final List<MusicFile> loadedSongs =
+          List<MusicFile>.unmodifiable(result.songs);
+
+      _suppressPlaylistNotification = true;
+      try {
+        await _playlistManager.replaceAllSongs(loadedSongs);
+      } finally {
+        _suppressPlaylistNotification = false;
+      }
+
+      await _reconcileCurrentSong(loadedSongs);
+      _soundCollectionManager.reconcileSongs(loadedSongs);
+      _allSongs = loadedSongs;
+      _skippedStorageLocations =
+          List<String>.unmodifiable(result.skippedLocations);
+      _musicLoadStatus = MusicLoadStatus.ready;
+    } on Object catch (error, stackTrace) {
+      _musicLoadError = error;
+      _musicLoadStatus = MusicLoadStatus.failed;
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          context: ErrorDescription('while loading the music library'),
+        ),
+      );
+    } finally {
+      _notifyListeners();
+    }
+  }
+
+  Future<void> _reconcileCurrentSong(List<MusicFile> loadedSongs) async {
+    if (currentSong == null) {
+      return;
+    }
+
+    for (final MusicFile song in loadedSongs) {
+      if (song.filePath == currentSong!.filePath) {
+        _currentSong = song;
+
+        return;
+      }
+    }
+
+    await _soundCollectionManager.stopPlayback();
+    _currentSong = null;
   }
 
   void setSearchQuery(String value) {
@@ -90,8 +191,30 @@ final class PlaylistViewModel extends ChangeNotifier {
     }
 
     _currentSong = song;
+    _playbackError = null;
     _notifyListeners();
-    await _soundCollectionManager.selectAndPlaySong(song);
+    await _playSelectedSong(song);
+  }
+
+  Future<void> _playSelectedSong(MusicFile song) async {
+    try {
+      await _soundCollectionManager.selectAndPlaySong(song);
+    } on Object catch (error, stackTrace) {
+      if (_currentSong?.filePath == song.filePath) {
+        _currentSong = null;
+        _playbackError = error;
+        _notifyListeners();
+      }
+
+      // TODO: Should we handle errors directly? Like this?
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          context: ErrorDescription('while selecting an audio source'),
+        ),
+      );
+    }
   }
 
   Future<void> shuffle() async {
@@ -99,7 +222,7 @@ final class PlaylistViewModel extends ChangeNotifier {
       return;
     }
 
-    final song = await _soundCollectionManager.getRandomMusic(
+    final MusicFile? song = await _soundCollectionManager.getRandomMusic(
       _playlistManager.currentPlaylistSongs,
     );
 
@@ -109,16 +232,13 @@ final class PlaylistViewModel extends ChangeNotifier {
 
     _currentSong = song;
     _notifyListeners();
-
-    await _soundCollectionManager.selectAndPlaySong(song);
+    await _playSelectedSong(song);
   }
 
   Future<void> resumeOrPause() async {
-    if (!canControlCurrentSong) {
-      return;
+    if (canControlCurrentSong) {
+      await _soundCollectionManager.resumeOrPauseSong();
     }
-
-    await _soundCollectionManager.resumeOrPauseSong();
   }
 
   Future<void> toggleLoopMode() async {
@@ -143,9 +263,7 @@ final class PlaylistViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> enterSettings() async {
-    await _stopAndResetPlayback();
-  }
+  Future<void> enterSettings() => _stopAndResetPlayback();
 
   void leaveSettings() {
     if (_disposed) {
@@ -159,18 +277,12 @@ final class PlaylistViewModel extends ChangeNotifier {
 
   Future<List<String>> getNamedPlaylistNames() async {
     final playlists = await _playlistManager.getPlaylists();
+
     return playlists.map((playlist) => playlist.name).toList();
   }
 
-  Future<void> addSongToPlaylist(
-    String playlistName,
-    MusicFile song,
-  ) async {
-    await _playlistManager.addSongToPlaylistByName(
-      playlistName,
-      song.filePath,
-    );
-  }
+  Future<void> addSongToPlaylist(String playlistName, MusicFile song) =>
+      _playlistManager.addSongToPlaylistByName(playlistName, song.filePath);
 
   Future<bool> removeSongFromCurrentPlaylist(MusicFile song) async {
     if (!canRemoveSongs) {
@@ -181,38 +293,40 @@ final class PlaylistViewModel extends ChangeNotifier {
       currentPlaylistName,
       song.filePath,
     );
+
     return true;
   }
 
   Future<void> playNextSongFromNotification() async {
-    final currentSong = _currentSong;
-    if (!_isPlaybackAvailable ||
-        currentSong == null ||
-        !songs.contains(currentSong) ||
-        songs.isEmpty ||
-        _disposed) {
+    final MusicFile? currentSong = _currentSong;
+
+    if (!_canNavigateFrom(currentSong)) {
       return;
     }
 
     await _playSongFromNotification(
-      _playlistManager.getNextSongFromPlaylist(currentSong),
+      _playlistManager.getNextSongFromPlaylist(currentSong!),
     );
   }
 
   Future<void> playPreviousSongFromNotification() async {
-    final currentSong = _currentSong;
-    if (!_isPlaybackAvailable ||
-        currentSong == null ||
-        !songs.contains(currentSong) ||
-        songs.isEmpty ||
-        _disposed) {
+    final MusicFile? currentSong = _currentSong;
+
+    if (!_canNavigateFrom(currentSong)) {
       return;
     }
 
     await _playSongFromNotification(
-      _playlistManager.getPreviousSongFromPlaylist(currentSong),
+      _playlistManager.getPreviousSongFromPlaylist(currentSong!),
     );
   }
+
+  bool _canNavigateFrom(MusicFile? song) =>
+      _isPlaybackAvailable &&
+      song != null &&
+      songs.contains(song) &&
+      songs.isNotEmpty &&
+      !_disposed;
 
   Future<void> _playSongFromNotification(MusicFile song) async {
     if (_disposed || !_isPlaybackAvailable || !songs.contains(song)) {
@@ -221,7 +335,7 @@ final class PlaylistViewModel extends ChangeNotifier {
 
     _currentSong = song;
     _notifyListeners();
-    await _soundCollectionManager.selectAndPlaySong(song);
+    await _playSelectedSong(song);
   }
 
   Future<void> _onPlaybackStateChanged(PlaybackState value) async {
@@ -229,15 +343,16 @@ final class PlaylistViewModel extends ChangeNotifier {
       return;
     }
 
-    if (currentPlaylistName != allFilesPlaylistName &&
+    if (currentPlaylistName != Constants.allFilesListName &&
         value.processingState == AudioProcessingState.completed) {
-      final currentSong = _currentSong;
+      final MusicFile? currentSong = _currentSong;
+      
       if (currentSong != null && songs.isNotEmpty) {
-        final songToPlay = _isLoopModeOn
+        final MusicFile songToPlay = _isLoopModeOn
             ? currentSong
             : _playlistManager.getNextSongFromPlaylist(currentSong);
         _currentSong = songToPlay;
-        await _soundCollectionManager.selectAndPlaySong(songToPlay);
+        await _playSelectedSong(songToPlay);
       }
     }
 
@@ -245,9 +360,14 @@ final class PlaylistViewModel extends ChangeNotifier {
   }
 
   void _onPlaylistChanged() {
+    if (_suppressPlaylistNotification) {
+      return;
+    }
+
     if (_isPlaybackAvailable) {
       _applyLoopModeForCurrentPlaylist();
     }
+    
     _notifyListeners();
   }
 
@@ -259,8 +379,9 @@ final class PlaylistViewModel extends ChangeNotifier {
   }
 
   void _applyLoopModeForCurrentPlaylist() {
-    final loopMode =
-        currentPlaylistName == allFilesPlaylistName ? true : _isLoopModeOn;
+    final bool loopMode = currentPlaylistName == Constants.allFilesListName
+        ? true
+        : _isLoopModeOn;
     unawaited(_soundCollectionManager.setLoopMode(loopMode));
   }
 

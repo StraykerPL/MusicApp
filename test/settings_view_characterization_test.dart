@@ -35,7 +35,6 @@ void main() {
     Widget testApp({required Widget home}) {
       return MultiProvider(
         providers: [
-          Provider<List<MusicFile>>.value(value: songs),
           Provider<SettingsSnapshotRepository>.value(
             value: settingsSnapshotRepository,
           ),

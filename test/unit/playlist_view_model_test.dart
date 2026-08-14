@@ -1,19 +1,51 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:strayker_music/Constants/constants.dart';
+import 'package:strayker_music/Models/music_load_status.dart';
 import 'package:strayker_music/Services/default_audio_handler.dart';
+import 'package:strayker_music/Services/music_library_service.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Services/sound_collection_manager.dart';
 import 'package:strayker_music/Services/sound_player.dart';
 import 'package:strayker_music/Models/music_file.dart';
+import 'package:strayker_music/Models/music_scan_result.dart';
+import 'package:strayker_music/Repositories/music_file_repository.dart';
 import 'package:strayker_music/ViewModels/playlist_view_model.dart';
 
 import '../helpers/music_file_test_helper.dart';
 import '../mocks/fake_view_database_helpers.dart';
 
 class MockSoundPlayer extends Mock implements SoundPlayer {}
+
+class FakeMusicFileRepository extends MusicFileRepository {
+  FakeMusicFileRepository(this.songs);
+
+  List<MusicFile> songs;
+  int getAllCalls = 0;
+  Object? error;
+  Completer<void>? pendingLoad;
+
+  @override
+  Future<MusicScanResult> getAll(List<String> storageLocations) async {
+    getAllCalls++;
+    final pending = pendingLoad;
+    if (pending != null) {
+      await pending.future;
+    }
+    final currentError = error;
+    if (currentError != null) {
+      throw currentError;
+    }
+    return MusicScanResult(
+      songs: songs,
+      skippedLocations: const <String>[],
+    );
+  }
+}
 
 void main() {
   group('PlaylistViewModel', () {
@@ -22,6 +54,8 @@ void main() {
     late PlaylistManager playlistManager;
     late MockSoundPlayer soundPlayer;
     late SoundCollectionManager soundCollectionManager;
+    late MusicLibraryService musicLibraryService;
+    late FakeMusicFileRepository musicFileRepository;
     late PlaylistViewModel viewModel;
     late StreamController<PlaybackState> playbackStates;
     late List<MusicFile> songs;
@@ -69,9 +103,15 @@ void main() {
         player: soundPlayer,
         settingsSnapshotRepository: settingsSnapshotRepository,
       );
+      musicFileRepository = FakeMusicFileRepository(songs);
+      musicLibraryService = MusicLibraryService(
+        musicFileRepository: musicFileRepository,
+        settingsSnapshotRepository: settingsSnapshotRepository,
+      );
       viewModel = PlaylistViewModel(
         playlistManager: playlistManager,
         soundCollectionManager: soundCollectionManager,
+        musicLibraryService: musicLibraryService,
       );
     });
 
@@ -100,6 +140,106 @@ void main() {
       expect(viewModel.searchQuery, isEmpty);
       expect(viewModel.isSearchVisible, isTrue);
       expect(viewModel.displayedSongs, hasLength(3));
+    });
+
+    test('publishes a complete sorted immutable collection atomically',
+        () async {
+      final observedCollections = <List<String>>[];
+      playlistManager.addListener(() {
+        observedCollections.add(
+          playlistManager.currentPlaylistSongs
+              .map((song) => song.name)
+              .toList(),
+        );
+      });
+
+      await viewModel.initialize();
+
+      expect(viewModel.musicLoadStatus, MusicLoadStatus.ready);
+      expect(viewModel.allSongs.map((song) => song.name), [
+        'alpha',
+        'beta',
+        'gamma',
+      ]);
+      expect(observedCollections.single, <String>['alpha', 'beta', 'gamma']);
+      expect(
+        () => viewModel.allSongs.add(createSong('/music/new.mp3')),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('concurrent initialize calls start only one music scan', () async {
+      final pendingLoad = Completer<void>();
+      musicFileRepository.pendingLoad = pendingLoad;
+
+      final first = viewModel.initialize();
+      final second = viewModel.initialize();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(musicFileRepository.getAllCalls, 1);
+      expect(viewModel.musicLoadStatus, MusicLoadStatus.loading);
+      pendingLoad.complete();
+      await Future.wait(<Future<void>>[first, second]);
+      expect(viewModel.musicLoadStatus, MusicLoadStatus.ready);
+    });
+
+    test('failed initial load can retry after the first attempt completes',
+        () async {
+      final previousOnError = FlutterError.onError;
+      final reportedErrors = <FlutterErrorDetails>[];
+      FlutterError.onError = reportedErrors.add;
+      addTearDown(() => FlutterError.onError = previousOnError);
+      musicFileRepository.error = StateError('scan failed');
+
+      await viewModel.initialize();
+
+      expect(viewModel.musicLoadStatus, MusicLoadStatus.failed);
+      expect(musicFileRepository.getAllCalls, 1);
+      musicFileRepository.error = null;
+      await viewModel.retryInitialMusicLoad();
+
+      expect(musicFileRepository.getAllCalls, 2);
+      expect(viewModel.musicLoadStatus, MusicLoadStatus.ready);
+      expect(reportedErrors, hasLength(1));
+    });
+
+    test('reconciles the selected song to the newly loaded path instance',
+        () async {
+      final selected = songs[1];
+      await viewModel.selectSong(selected);
+      final replacement = createSong(selected.filePath);
+      musicFileRepository.songs = <MusicFile>[replacement];
+
+      await viewModel.initialize();
+
+      expect(viewModel.currentSong, same(replacement));
+    });
+
+    test('stops and clears selection when its path is no longer loaded',
+        () async {
+      await viewModel.selectSong(songs[1]);
+      musicFileRepository.songs = <MusicFile>[createSong('/music/other.mp3')];
+      clearInteractions(soundPlayer);
+
+      await viewModel.initialize();
+
+      expect(viewModel.currentSong, isNull);
+      verify(() => soundPlayer.stop()).called(1);
+    });
+
+    test('playback source errors are retained at the view-model boundary',
+        () async {
+      final error = StateError('unreadable');
+      when(() => soundPlayer.playNewSong(any())).thenThrow(error);
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = (_) {};
+      addTearDown(() => FlutterError.onError = previousOnError);
+      await viewModel.initialize();
+
+      await viewModel.selectSong(viewModel.songs.first);
+
+      expect(viewModel.currentSong, isNull);
+      expect(viewModel.playbackError, same(error));
     });
 
     test('switches playlists and applies the named playlist loop mode',
@@ -279,7 +419,7 @@ void main() {
 
       viewModel.dispose();
       isViewModelDisposed = true;
-      await playlistManager.switchToPlaylist('All Files');
+      await playlistManager.switchToPlaylist(Constants.allFilesListName);
       playbackStates.add(
         PlaybackState(
           processingState: AudioProcessingState.ready,

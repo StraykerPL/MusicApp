@@ -1,6 +1,6 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:path/path.dart' as path;
 import 'package:strayker_music/Constants/constants.dart';
-import 'package:uuid/uuid.dart';
 
 interface class MusicFile {
   late MediaItem _mediaItem;
@@ -9,29 +9,29 @@ interface class MusicFile {
 
   String get name => _nameLocal;
   String get filePath => _filePathLocal;
-  set filePath(String value) => {
-        _filePathLocal = value,
-        _nameLocal = _getFileName(value),
-        _mediaItem = MediaItem(id: const Uuid().v4(), title: _nameLocal)
-      };
+  set filePath(String value) {
+    _filePathLocal = path.normalize(path.absolute(value));
+    _nameLocal = _getFileName(_filePathLocal);
+    _mediaItem = MediaItem(id: _filePathLocal, title: _nameLocal);
+  }
+
   MediaItem get mediaItemMetaData => _mediaItem;
 
   String _getFileName(String givenPath) {
     String name = givenPath;
 
-    if (name.endsWith(Constants.stringMp3Extension)) {
-      name =
-          name.replaceAll(Constants.stringMp3Extension, Constants.stringEmpty);
-    }
-
-    for (var i = name.length - 1; i > 0; i--) {
-      if (name[i] == '/') {
-        name = name.substring(i + 1);
-
-        break;
-      }
-    }
-
-    return name;
+    final String fileName = path.basename(name);
+    return path.extension(fileName).toLowerCase() ==
+            Constants.stringMp3Extension
+        ? path.basenameWithoutExtension(fileName)
+        : fileName;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MusicFile && other.filePath == filePath;
+
+  @override
+  int get hashCode => filePath.hashCode;
 }

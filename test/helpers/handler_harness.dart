@@ -66,12 +66,10 @@ class HandlerHarness {
     when(() => session.devicesChangedEventStream)
         .thenAnswer((_) => deviceEvents.stream);
 
-    final handler = DefaultAudioHandler(
+    final handler = await DefaultAudioHandler.create(
       player: player,
       sessionProvider: () async => session,
     );
-
-    await Future<void>.delayed(Duration.zero);
 
     return HandlerHarness(
       handler: handler,
