@@ -69,7 +69,7 @@ class FakeSettingsSnapshotRepository extends SettingsSnapshotRepository {
   FakeSettingsSnapshotRepository()
       : snapshot = SettingsSnapshot(
           playedSongsMaxAmount: 0,
-          storageLocations: ['/storage/emulated/0/Music'],
+          storageLocations: ['mediastore://external_primary/Music/'],
         ),
         super(databaseHelper: DatabaseHelper());
 

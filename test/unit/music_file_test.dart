@@ -1,16 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as path;
 import 'package:strayker_music/Models/music_file.dart';
 
 void main() {
-  test('normalized absolute path provides stable value and media identity', () {
-    final first = MusicFile()..filePath = './music/../music/Song.MP3';
-    final second = MusicFile()..filePath = path.absolute('music/Song.MP3');
+  test('uses the opaque content URI for identity and MediaItem metadata', () {
+    final uri = Uri.parse('content://media/external_primary/audio/media/42');
+    final first = MusicFile(sourceUri: uri, displayName: 'Song.MP3');
+    final second = MusicFile(sourceUri: uri, displayName: 'Renamed.mp3');
 
     expect(first, second);
     expect(first.hashCode, second.hashCode);
-    expect(first.filePath, path.normalize(path.absolute('music/Song.MP3')));
-    expect(first.mediaItemMetaData.id, first.filePath);
+    expect(first.sourceUri, uri);
+    expect(first.mediaItemMetaData.id, uri.toString());
     expect(first.name, 'Song');
+  });
+
+  test('rejects non-content music locators', () {
+    expect(
+      () => MusicFile(
+        sourceUri: Uri.file('/storage/emulated/0/Music/song.mp3'),
+        displayName: 'song.mp3',
+      ),
+      throwsArgumentError,
+    );
   });
 }

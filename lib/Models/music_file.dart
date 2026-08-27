@@ -1,37 +1,40 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:path/path.dart' as path;
 import 'package:strayker_music/Constants/constants.dart';
 
-interface class MusicFile {
-  late MediaItem _mediaItem;
-  String _nameLocal = Constants.stringEmpty;
-  String _filePathLocal = Constants.stringEmpty;
+final class MusicFile {
+  final Uri sourceUri;
+  final String name;
+  final MediaItem mediaItemMetaData;
 
-  String get name => _nameLocal;
-  String get filePath => _filePathLocal;
-  set filePath(String value) {
-    _filePathLocal = path.normalize(path.absolute(value));
-    _nameLocal = _getFileName(_filePathLocal);
-    _mediaItem = MediaItem(id: _filePathLocal, title: _nameLocal);
+  MusicFile({required this.sourceUri, required String displayName})
+      : name = _titleFromDisplayName(displayName),
+        mediaItemMetaData = MediaItem(
+          id: sourceUri.toString(),
+          title: _titleFromDisplayName(displayName),
+        ) {
+    if (sourceUri.scheme != 'content' || sourceUri.authority.isEmpty) {
+      throw ArgumentError.value(
+        sourceUri,
+        'sourceUri',
+        'Music source must be an Android content URI.',
+      );
+    }
   }
 
-  MediaItem get mediaItemMetaData => _mediaItem;
-
-  String _getFileName(String givenPath) {
-    String name = givenPath;
-
-    final String fileName = path.basename(name);
-    return path.extension(fileName).toLowerCase() ==
-            Constants.stringMp3Extension
-        ? path.basenameWithoutExtension(fileName)
-        : fileName;
+  static String _titleFromDisplayName(String displayName) {
+    return displayName.toLowerCase().endsWith(Constants.stringMp3Extension)
+        ? displayName.substring(
+            0,
+            displayName.length - Constants.stringMp3Extension.length,
+          )
+        : displayName;
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MusicFile && other.filePath == filePath;
+      other is MusicFile && other.sourceUri == sourceUri;
 
   @override
-  int get hashCode => filePath.hashCode;
+  int get hashCode => sourceUri.hashCode;
 }

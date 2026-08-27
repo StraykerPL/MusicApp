@@ -13,7 +13,7 @@ class DatabaseHelper {
   static const String _playedSongsMaxAmountTableValueName =
       "playedSongsMaxAmount";
   static const List<String> _soundStorageLocationsDefault = [
-    "/storage/emulated/0/Music"
+    "mediastore://external_primary/Music/"
   ];
   static const int _playedSongsMaxAmountDefault = 0;
 

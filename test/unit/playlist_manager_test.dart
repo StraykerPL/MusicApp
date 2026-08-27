@@ -18,9 +18,9 @@ void main() {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [
-          createSong('/music/zebra.mp3'),
-          createSong('/music/alpha.mp3'),
-          createSong('/music/mango.mp3'),
+          createSong('content://test/audio/music/zebra.mp3'),
+          createSong('content://test/audio/music/alpha.mp3'),
+          createSong('content://test/audio/music/mango.mp3'),
         ],
       );
 
@@ -36,7 +36,7 @@ void main() {
         () async {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
-        allSongs: [createSong('/music/alpha.mp3')],
+        allSongs: [createSong('content://test/audio/music/alpha.mp3')],
       );
       var notifications = 0;
       manager.addListener(() => notifications++);
@@ -53,7 +53,7 @@ void main() {
         () async {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
-        allSongs: [createSong('/music/alpha.mp3')],
+        allSongs: [createSong('content://test/audio/music/alpha.mp3')],
       );
       await playlistRepository.create('Road Trip');
       await playlistRepository.create('Focus');
@@ -71,14 +71,16 @@ void main() {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [
-          createSong('/music/alpha.mp3'),
-          createSong('/music/beta.mp3'),
-          createSong('/music/gamma.mp3'),
+          createSong('content://test/audio/music/alpha.mp3'),
+          createSong('content://test/audio/music/beta.mp3'),
+          createSong('content://test/audio/music/gamma.mp3'),
         ],
       );
       final playlistId = (await playlistRepository.create('Focus')).id;
-      await playlistRepository.addSong(playlistId, '/music/beta.mp3');
-      await playlistRepository.addSong(playlistId, '/music/gamma.mp3');
+      await playlistRepository.addSong(
+          playlistId, 'content://test/audio/music/beta.mp3');
+      await playlistRepository.addSong(
+          playlistId, 'content://test/audio/music/gamma.mp3');
       var notifications = 0;
       manager.addListener(() => notifications++);
 
@@ -86,8 +88,13 @@ void main() {
 
       expect(manager.currentPlaylist, 'Focus');
       expect(
-        manager.currentPlaylistSongs.map((song) => song.filePath).toList(),
-        ['/music/beta.mp3', '/music/gamma.mp3'],
+        manager.currentPlaylistSongs
+            .map((song) => song.sourceUri.toString())
+            .toList(),
+        [
+          'content://test/audio/music/beta.mp3',
+          'content://test/audio/music/gamma.mp3'
+        ],
       );
       expect(notifications, 1);
     });
@@ -96,8 +103,8 @@ void main() {
         'getPlaylistSongsByName returns all songs for All Files and missing playlists',
         () async {
       final songs = [
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
       ];
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
@@ -119,8 +126,8 @@ void main() {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [
-          createSong('/music/alpha.mp3'),
-          createSong('/music/beta.mp3'),
+          createSong('content://test/audio/music/alpha.mp3'),
+          createSong('content://test/audio/music/beta.mp3'),
         ],
       );
       await playlistRepository.create('Focus');
@@ -128,11 +135,14 @@ void main() {
       var notifications = 0;
       manager.addListener(() => notifications++);
 
-      await manager.addSongToPlaylistByName('Focus', '/music/beta.mp3');
+      await manager.addSongToPlaylistByName(
+          'Focus', 'content://test/audio/music/beta.mp3');
 
       expect(
-        manager.currentPlaylistSongs.map((song) => song.filePath).toList(),
-        ['/music/beta.mp3'],
+        manager.currentPlaylistSongs
+            .map((song) => song.sourceUri.toString())
+            .toList(),
+        ['content://test/audio/music/beta.mp3'],
       );
       expect(notifications, 1);
     });
@@ -143,20 +153,25 @@ void main() {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [
-          createSong('/music/alpha.mp3'),
-          createSong('/music/beta.mp3'),
+          createSong('content://test/audio/music/alpha.mp3'),
+          createSong('content://test/audio/music/beta.mp3'),
         ],
       );
       final playlistId = (await playlistRepository.create('Focus')).id;
-      await playlistRepository.addSong(playlistId, '/music/alpha.mp3');
-      await playlistRepository.addSong(playlistId, '/music/beta.mp3');
+      await playlistRepository.addSong(
+          playlistId, 'content://test/audio/music/alpha.mp3');
+      await playlistRepository.addSong(
+          playlistId, 'content://test/audio/music/beta.mp3');
       await manager.switchToPlaylist('Focus');
 
-      await manager.removeSongFromPlaylistByName('Focus', '/music/beta.mp3');
+      await manager.removeSongFromPlaylistByName(
+          'Focus', 'content://test/audio/music/beta.mp3');
 
       expect(
-        manager.currentPlaylistSongs.map((song) => song.filePath).toList(),
-        ['/music/alpha.mp3'],
+        manager.currentPlaylistSongs
+            .map((song) => song.sourceUri.toString())
+            .toList(),
+        ['content://test/audio/music/alpha.mp3'],
       );
     });
 
@@ -166,12 +181,13 @@ void main() {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [
-          createSong('/music/alpha.mp3'),
-          createSong('/music/beta.mp3'),
+          createSong('content://test/audio/music/alpha.mp3'),
+          createSong('content://test/audio/music/beta.mp3'),
         ],
       );
       final playlistId = (await playlistRepository.create('Focus')).id;
-      await playlistRepository.addSong(playlistId, '/music/alpha.mp3');
+      await playlistRepository.addSong(
+          playlistId, 'content://test/audio/music/alpha.mp3');
       await manager.switchToPlaylist('Focus');
 
       await manager.deletePlaylistByName('Focus');
@@ -179,8 +195,13 @@ void main() {
       expect(manager.currentPlaylist, Constants.allFilesListName);
       expect(manager.availablePlaylists, [Constants.allFilesListName]);
       expect(
-        manager.currentPlaylistSongs.map((song) => song.filePath).toList(),
-        ['/music/alpha.mp3', '/music/beta.mp3'],
+        manager.currentPlaylistSongs
+            .map((song) => song.sourceUri.toString())
+            .toList(),
+        [
+          'content://test/audio/music/alpha.mp3',
+          'content://test/audio/music/beta.mp3'
+        ],
       );
     });
 
@@ -189,17 +210,18 @@ void main() {
         () async {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
-        allSongs: [createSong('/music/alpha.mp3')],
+        allSongs: [createSong('content://test/audio/music/alpha.mp3')],
       );
       final playlistId = (await playlistRepository.create('Focus')).id;
-      await playlistRepository.addSong(playlistId, '/music/beta.mp3');
+      await playlistRepository.addSong(
+          playlistId, 'content://test/audio/music/beta.mp3');
 
       final inAllFiles = await manager.isSongInPlaylist(
-          Constants.allFilesListName, '/music/alpha.mp3');
-      final inFocus =
-          await manager.isSongInPlaylist('Focus', '/music/beta.mp3');
-      final missing =
-          await manager.isSongInPlaylist('Missing', '/music/beta.mp3');
+          Constants.allFilesListName, 'content://test/audio/music/alpha.mp3');
+      final inFocus = await manager.isSongInPlaylist(
+          'Focus', 'content://test/audio/music/beta.mp3');
+      final missing = await manager.isSongInPlaylist(
+          'Missing', 'content://test/audio/music/beta.mp3');
 
       expect(inAllFiles, isTrue);
       expect(inFocus, isTrue);
@@ -211,23 +233,25 @@ void main() {
         () async {
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
-        allSongs: [createSong('/music/alpha.mp3')],
+        allSongs: [createSong('content://test/audio/music/alpha.mp3')],
       );
       final roadTripId = (await playlistRepository.create('Road Trip')).id;
       final focusId = (await playlistRepository.create('Focus')).id;
-      await playlistRepository.addSong(roadTripId, '/music/alpha.mp3');
-      await playlistRepository.addSong(focusId, '/music/beta.mp3');
+      await playlistRepository.addSong(
+          roadTripId, 'content://test/audio/music/alpha.mp3');
+      await playlistRepository.addSong(
+          focusId, 'content://test/audio/music/beta.mp3');
 
-      final result =
-          await manager.getPlaylistsContainingSong('/music/alpha.mp3');
+      final result = await manager
+          .getPlaylistsContainingSong('content://test/audio/music/alpha.mp3');
 
       expect(result, ['Road Trip']);
     });
 
     test('getNextSongFromPlaylist returns next song and wraps at the end', () {
-      final alpha = createSong('/music/alpha.mp3');
-      final beta = createSong('/music/beta.mp3');
-      final gamma = createSong('/music/gamma.mp3');
+      final alpha = createSong('content://test/audio/music/alpha.mp3');
+      final beta = createSong('content://test/audio/music/beta.mp3');
+      final gamma = createSong('content://test/audio/music/gamma.mp3');
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [beta, gamma, alpha],
@@ -242,9 +266,9 @@ void main() {
 
     test('getPreviousSongFromPlaylist returns previous song and wraps at start',
         () {
-      final alpha = createSong('/music/alpha.mp3');
-      final beta = createSong('/music/beta.mp3');
-      final gamma = createSong('/music/gamma.mp3');
+      final alpha = createSong('content://test/audio/music/alpha.mp3');
+      final beta = createSong('content://test/audio/music/beta.mp3');
+      final gamma = createSong('content://test/audio/music/gamma.mp3');
       final manager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [beta, gamma, alpha],

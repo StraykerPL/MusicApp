@@ -93,9 +93,9 @@ void main() {
       playlistRepository = FakePlaylistRepository();
       settingsSnapshotRepository = FakeSettingsSnapshotRepository();
       songs = [
-        createSong('/music/gamma.mp3'),
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
+        createSong('content://test/audio/music/gamma.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
       ];
       playlistManager = PlaylistManager(
         playlistRepository: playlistRepository,
@@ -220,7 +220,7 @@ void main() {
       final playlistId = (await playlistRepository.create('Focus')).id;
       await playlistRepository.addSong(
         playlistId,
-        '/music/beta.mp3',
+        'content://test/audio/music/beta.mp3',
       );
       await playlistManager.switchToPlaylist('Focus');
       await pumpPlaylistView(tester);
@@ -250,7 +250,7 @@ void main() {
         (tester) async {
       final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await playlistRepository.addSong(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.sourceUri.toString());
       }
       await playlistManager.switchToPlaylist('Focus');
       await pumpPlaylistView(tester);
@@ -274,7 +274,7 @@ void main() {
         (tester) async {
       final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await playlistRepository.addSong(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.sourceUri.toString());
       }
       await playlistManager.switchToPlaylist('Focus');
       await pumpPlaylistView(tester);

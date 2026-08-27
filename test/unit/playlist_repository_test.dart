@@ -31,13 +31,24 @@ void main() {
 
   test('exposes playlist membership as paths and playlist models', () async {
     final focus = await repository.create('Focus');
-    await repository.addSong(focus.id, '/music/song.mp3');
+    await repository.addSong(focus.id, 'content://test/audio/music/song.mp3');
 
-    expect(await repository.getSongPaths(focus.id), ['/music/song.mp3']);
-    expect(await repository.containsSong(focus.id, '/music/song.mp3'), isTrue);
-    expect(await repository.getContainingSong('/music/song.mp3'), [focus]);
+    expect(await repository.getSongPaths(focus.id),
+        ['content://test/audio/music/song.mp3']);
+    expect(
+        await repository.containsSong(
+            focus.id, 'content://test/audio/music/song.mp3'),
+        isTrue);
+    expect(
+        await repository
+            .getContainingSong('content://test/audio/music/song.mp3'),
+        [focus]);
 
-    await repository.removeSong(focus.id, '/music/song.mp3');
-    expect(await repository.containsSong(focus.id, '/music/song.mp3'), isFalse);
+    await repository.removeSong(
+        focus.id, 'content://test/audio/music/song.mp3');
+    expect(
+        await repository.containsSong(
+            focus.id, 'content://test/audio/music/song.mp3'),
+        isFalse);
   });
 }

@@ -163,7 +163,7 @@ final class PlaylistViewModel extends ChangeNotifier {
     }
 
     for (final MusicFile song in loadedSongs) {
-      if (song.filePath == currentSong!.filePath) {
+      if (song.sourceUri == currentSong!.sourceUri) {
         _currentSong = song;
 
         return;
@@ -200,7 +200,7 @@ final class PlaylistViewModel extends ChangeNotifier {
     try {
       await _soundCollectionManager.selectAndPlaySong(song);
     } on Object catch (error, stackTrace) {
-      if (_currentSong?.filePath == song.filePath) {
+      if (_currentSong?.sourceUri == song.sourceUri) {
         _currentSong = null;
         _playbackError = error;
         _notifyListeners();
@@ -282,7 +282,10 @@ final class PlaylistViewModel extends ChangeNotifier {
   }
 
   Future<void> addSongToPlaylist(String playlistName, MusicFile song) =>
-      _playlistManager.addSongToPlaylistByName(playlistName, song.filePath);
+      _playlistManager.addSongToPlaylistByName(
+        playlistName,
+        song.sourceUri.toString(),
+      );
 
   Future<bool> removeSongFromCurrentPlaylist(MusicFile song) async {
     if (!canRemoveSongs) {
@@ -291,7 +294,7 @@ final class PlaylistViewModel extends ChangeNotifier {
 
     await _playlistManager.removeSongFromPlaylistByName(
       currentPlaylistName,
-      song.filePath,
+      song.sourceUri.toString(),
     );
 
     return true;
@@ -346,7 +349,7 @@ final class PlaylistViewModel extends ChangeNotifier {
     if (currentPlaylistName != Constants.allFilesListName &&
         value.processingState == AudioProcessingState.completed) {
       final MusicFile? currentSong = _currentSong;
-      
+
       if (currentSong != null && songs.isNotEmpty) {
         final MusicFile songToPlay = _isLoopModeOn
             ? currentSong
@@ -367,7 +370,7 @@ final class PlaylistViewModel extends ChangeNotifier {
     if (_isPlaybackAvailable) {
       _applyLoopModeForCurrentPlaylist();
     }
-    
+
     _notifyListeners();
   }
 

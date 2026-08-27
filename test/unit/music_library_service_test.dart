@@ -23,8 +23,8 @@ void main() {
       musicFileRepository: FakeMusicFileRepository(
         MusicScanResult(
           songs: <MusicFile>[
-            createSong('/music/zeta.mp3'),
-            createSong('/music/alpha.mp3'),
+            createSong('content://test/audio/music/zeta.mp3'),
+            createSong('content://test/audio/music/alpha.mp3'),
           ],
           skippedLocations: const <String>['/missing'],
         ),
@@ -37,7 +37,7 @@ void main() {
     expect(result.songs.map((song) => song.name), <String>['alpha', 'zeta']);
     expect(result.skippedLocations, <String>['/missing']);
     expect(
-      () => result.songs.add(createSong('/music/new.mp3')),
+      () => result.songs.add(createSong('content://test/audio/music/new.mp3')),
       throwsUnsupportedError,
     );
     expect(() => result.skippedLocations.add('/other'), throwsUnsupportedError);

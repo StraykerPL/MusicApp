@@ -1,13 +1,15 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:strayker_media_store/strayker_media_store.dart';
 import 'package:strayker_music/Services/database_helper.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/playlist.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
 import 'package:strayker_music/Repositories/settings_snapshot_repository.dart';
 import 'package:strayker_music/Shared/input_security.dart';
-import 'package:strayker_music/Shared/storage_path_policy.dart';
+
+typedef AudioFolderLoader = Future<List<AudioFolder>> Function();
 
 sealed class SettingsCommandResult {
   const SettingsCommandResult();
@@ -32,17 +34,22 @@ final class SettingsViewModel extends ChangeNotifier {
     required SettingsSnapshotRepository settingsSnapshotRepository,
     required PlaylistManager playlistManager,
     required int loadedSongCount,
+    AudioFolderLoader? audioFolderLoader,
   })  : _settingsSnapshotRepository = settingsSnapshotRepository,
         _playlistManager = playlistManager,
+        _audioFolderLoader =
+            audioFolderLoader ?? const StraykerMediaStore().listAudioFolders,
         playedSongsMaxAllowed = loadedSongCount > 1 ? loadedSongCount - 1 : 0;
 
   final SettingsSnapshotRepository _settingsSnapshotRepository;
   final PlaylistManager _playlistManager;
+  final AudioFolderLoader _audioFolderLoader;
 
   int _playedSongsMaxAmount = 0;
   String _playedSongsMaxAmountText = '';
-  List<String> _storageLocations = [];
-  String? _selectedStoragePath;
+  List<AudioFolder> _storageLocations = [];
+  List<AudioFolder> _availableAudioFolders = [];
+  String? _selectedStorageSourceId;
   List<Playlist> _playlists = [];
   String? _selectedPlaylistName;
   bool _isPersistenceInProgress = false;
@@ -51,9 +58,27 @@ final class SettingsViewModel extends ChangeNotifier {
   int get playedSongsMaxAmount => _playedSongsMaxAmount;
   final int playedSongsMaxAllowed;
   String get playedSongsMaxAmountText => _playedSongsMaxAmountText;
-  UnmodifiableListView<String> get storageLocations =>
-      UnmodifiableListView(_storageLocations);
-  String? get selectedStoragePath => _selectedStoragePath;
+  UnmodifiableListView<String> get storageLocationDisplayPaths =>
+      UnmodifiableListView(
+        _storageLocations.map((folder) => folder.displayPath
+            .substring(folder.displayPath.lastIndexOf('/') + 1)),
+      );
+  UnmodifiableListView<String> get availableAudioFolderDisplayPaths =>
+      UnmodifiableListView(
+        _availableAudioFolders.map((folder) => folder.displayPath
+            .substring(folder.displayPath.lastIndexOf('/') + 1)),
+      );
+  int? get selectedStorageLocationIndex {
+    final sourceId = _selectedStorageSourceId;
+
+    if (sourceId == null) return null;
+    final index = _storageLocations.indexWhere(
+      (folder) => folder.sourceId == sourceId,
+    );
+
+    return index < 0 ? null : index;
+  }
+
   UnmodifiableListView<Playlist> get playlists =>
       UnmodifiableListView(_playlists);
   String? get selectedPlaylistName => _selectedPlaylistName;
@@ -64,14 +89,28 @@ final class SettingsViewModel extends ChangeNotifier {
     final snapshot = await _settingsSnapshotRepository.get();
     final savedAmount = snapshot.playedSongsMaxAmount;
     _setPlayedSongsMaxAmount(savedAmount);
+
     if (_playedSongsMaxAmount != savedAmount) {
       await _settingsSnapshotRepository.updatePlayedSongsMaxAmount(
         _playedSongsMaxAmount,
       );
     }
 
-    _storageLocations = List<String>.of(snapshot.storageLocations);
-    _selectedStoragePath = null;
+    try {
+      _availableAudioFolders = await _audioFolderLoader();
+    } on Object {
+      _availableAudioFolders = [];
+    }
+
+    final foldersById = <String, AudioFolder>{
+      for (final folder in _availableAudioFolders) folder.sourceId: folder,
+    };
+    _storageLocations = snapshot.storageLocations
+        .map((sourceId) =>
+            foldersById[sourceId] ?? _folderFromSourceId(sourceId))
+        .whereType<AudioFolder>()
+        .toList();
+    _selectedStorageSourceId = null;
     await _refreshPlaylists();
     _selectedPlaylistName = null;
     _notifyListeners();
@@ -86,27 +125,34 @@ final class SettingsViewModel extends ChangeNotifier {
     _notifyListeners();
   }
 
-  void selectStoragePath(String? path) {
-    _selectedStoragePath = path;
+  void selectStorageLocation(int? index) {
+    _selectedStorageSourceId = index == null
+        ? null
+        : _storageLocations.elementAtOrNull(index)?.sourceId;
     _notifyListeners();
   }
 
-  SettingsCommandResult addStoragePath(String path) {
-    final validationError = StoragePathPolicy.getValidationError(path);
-    if (validationError != null) {
-      return SettingsCommandFailure(validationError);
+  SettingsCommandResult addAvailableAudioFolder(int index) {
+    final folder = _availableAudioFolders.elementAtOrNull(index);
+
+    if (folder == null) {
+      return const SettingsCommandFailure(
+          'The selected audio folder is unavailable.');
     }
 
-    if (!_storageLocations.contains(path)) {
-      _storageLocations.add(path);
+    if (!_storageLocations.any((item) => item.sourceId == folder.sourceId)) {
+      _storageLocations.add(folder);
       _notifyListeners();
     }
+
     return const SettingsCommandSuccess();
   }
 
   void removeSelectedStoragePath() {
-    _storageLocations.remove(_selectedStoragePath);
-    _selectedStoragePath = null;
+    _storageLocations.removeWhere(
+      (folder) => folder.sourceId == _selectedStorageSourceId,
+    );
+    _selectedStorageSourceId = null;
     _notifyListeners();
   }
 
@@ -193,8 +239,11 @@ final class SettingsViewModel extends ChangeNotifier {
     try {
       _playedSongsMaxAmount = DatabaseHelper.getPlayedSongsMaxAmountDefault();
       _playedSongsMaxAmountText = _playedSongsMaxAmount.toString();
-      _storageLocations = DatabaseHelper.getSoundStorageLocationsDefault();
-      _selectedStoragePath = null;
+      _storageLocations = DatabaseHelper.getSoundStorageLocationsDefault()
+          .map(_folderFromSourceId)
+          .whereType<AudioFolder>()
+          .toList();
+      _selectedStorageSourceId = null;
       _notifyListeners();
       await _persistCurrentSettings();
       return const SettingsCommandSuccess();
@@ -213,7 +262,8 @@ final class SettingsViewModel extends ChangeNotifier {
     return _settingsSnapshotRepository.save(
       SettingsSnapshot(
         playedSongsMaxAmount: _playedSongsMaxAmount,
-        storageLocations: List<String>.of(_storageLocations),
+        storageLocations:
+            _storageLocations.map((folder) => folder.sourceId).toList(),
       ),
     );
   }
@@ -230,6 +280,51 @@ final class SettingsViewModel extends ChangeNotifier {
   void _setPlayedSongsMaxAmount(int value) {
     _playedSongsMaxAmount = _clampPlayedSongsMaxAmount(value);
     _playedSongsMaxAmountText = _playedSongsMaxAmount.toString();
+  }
+
+  static AudioFolder? _folderFromSourceId(String sourceId) {
+    final match = RegExp(r'^mediastore://([^/?#]+)/((?:[^/?#]+/)+)$')
+        .firstMatch(sourceId);
+
+    if (match == null) return null;
+
+    try {
+      final volume = Uri.decodeComponent(match.group(1)!);
+      final segments = match
+          .group(2)!
+          .split('/')
+          .where((segment) => segment.isNotEmpty)
+          .map(Uri.decodeComponent)
+          .toList();
+
+      if (segments.isEmpty ||
+          segments.any((segment) =>
+              segment.isEmpty ||
+              segment == '.' ||
+              segment == '..' ||
+              segment.contains('/'))) {
+        return null;
+      }
+
+      final canonical =
+          'mediastore://${Uri.encodeComponent(volume)}/${segments.map(Uri.encodeComponent).join('/')}/';
+
+      if (canonical != sourceId) return null;
+
+      final relativePath = '${segments.join('/')}/';
+      final root = volume == 'external_primary'
+          ? '/storage/emulated/0'
+          : '/storage/$volume';
+
+      return AudioFolder(
+        sourceId: sourceId,
+        displayPath: '$root/${segments.join('/')}',
+        volumeName: volume,
+        relativePath: relativePath,
+      );
+    } on FormatException {
+      return null;
+    }
   }
 
   void _notifyListeners() {

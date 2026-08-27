@@ -187,11 +187,19 @@ void main() {
       final harness = await HandlerHarness.create(sessionActive: true);
       addTearDown(harness.close);
       const item = MediaItem(id: 'song-1', title: 'Song 1');
+      final sourceUri =
+          Uri.parse('content://media/external_primary/audio/media/1');
 
-      await harness.handler.playNew(item, '/music/song-1.mp3');
+      await harness.handler.playNew(
+        item,
+        sourceUri,
+      );
 
       verify(() => harness.session.setActive(true)).called(1);
-      verify(() => harness.player.setAudioSource(any())).called(1);
+      final source = verify(
+        () => harness.player.setAudioSource(captureAny()),
+      ).captured.single as UriAudioSource;
+      expect(source.uri, sourceUri);
       verify(() => harness.player.play()).called(1);
       expect(harness.handler.mediaItem.value, item);
     });
@@ -201,7 +209,10 @@ void main() {
       addTearDown(harness.close);
       const item = MediaItem(id: 'song-1', title: 'Song 1');
 
-      await harness.handler.playNew(item, '/music/song-1.mp3');
+      await harness.handler.playNew(
+        item,
+        Uri.parse('content://media/external/audio/media/1'),
+      );
 
       verify(() => harness.session.setActive(true)).called(1);
       verifyNever(() => harness.player.setAudioSource(any()));
@@ -218,7 +229,7 @@ void main() {
 
       final playFuture = harness.handler.playNew(
         const MediaItem(id: 'pending', title: 'Pending'),
-        '/music/pending.mp3',
+        Uri.parse('content://media/external/audio/media/1'),
       );
       await untilCalled(() => harness.player.setAudioSource(any()));
       await harness.handler.stop();
@@ -245,9 +256,15 @@ void main() {
       const first = MediaItem(id: 'first', title: 'First');
       const second = MediaItem(id: 'second', title: 'Second');
 
-      final firstFuture = harness.handler.playNew(first, '/music/first.mp3');
+      final firstFuture = harness.handler.playNew(
+        first,
+        Uri.parse('content://media/external/audio/media/1'),
+      );
       await untilCalled(() => harness.player.setAudioSource(any()));
-      await harness.handler.playNew(second, '/music/second.mp3');
+      await harness.handler.playNew(
+        second,
+        Uri.parse('content://media/external/audio/media/2'),
+      );
       firstLoad.completeError(PlayerInterruptedException('superseded'));
       await firstFuture;
 
@@ -270,7 +287,7 @@ void main() {
         await expectLater(
           harness.handler.playNew(
             const MediaItem(id: 'broken', title: 'Broken'),
-            '/music/broken.mp3',
+            Uri.parse('content://media/external/audio/media/3'),
           ),
           throwsA(same(error)),
         );

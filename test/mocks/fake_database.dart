@@ -46,7 +46,7 @@ class FakeDatabase {
             'value': '0',
           });
           await db.insert('storageLocations', {
-            'name': '/storage/emulated/0/Music',
+            'name': 'mediastore://external_primary/Music/',
           });
         },
       ),

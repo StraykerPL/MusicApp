@@ -43,8 +43,8 @@ void main() {
         random: FakeRandom([1]),
       );
       final songs = [
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
       ];
 
       final result = await manager.getRandomMusic(songs);
@@ -62,8 +62,8 @@ void main() {
       );
 
       await manager.getRandomMusic([
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
       ]);
 
       expect(trackingRepository.getCalls, 1);
@@ -90,8 +90,8 @@ void main() {
         random: FakeRandom([0, 0, 1]),
       );
       final songs = [
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
       ];
       settingsSnapshotRepository.snapshot = SettingsSnapshot(
         playedSongsMaxAmount: 2,
@@ -114,9 +114,9 @@ void main() {
         random: FakeRandom([0, 1, 2, 0]),
       );
       final songs = [
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
-        createSong('/music/gamma.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
+        createSong('content://test/audio/music/gamma.mp3'),
       ];
       settingsSnapshotRepository.snapshot = SettingsSnapshot(
         playedSongsMaxAmount: 2,
@@ -141,9 +141,9 @@ void main() {
         random: FakeRandom([0, 1, 2, 0]),
       );
       final songs = [
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
-        createSong('/music/gamma.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
+        createSong('content://test/audio/music/gamma.mp3'),
       ];
       settingsSnapshotRepository.snapshot = SettingsSnapshot(
         playedSongsMaxAmount: 3,
@@ -165,7 +165,7 @@ void main() {
         player: soundPlayer,
         settingsSnapshotRepository: settingsSnapshotRepository,
       );
-      final song = createSong('/music/alpha.mp3');
+      final song = createSong('content://test/audio/music/alpha.mp3');
 
       await manager.selectAndPlaySong(song);
 

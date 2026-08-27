@@ -1,13 +1,9 @@
-import 'dart:io';
-
-import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Shared/icon_widgets.dart';
 import 'package:strayker_music/Shared/input_security.dart';
-import 'package:strayker_music/Shared/storage_path_policy.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
 
 class SettingsView extends StatefulWidget {
@@ -104,6 +100,43 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+  Future<void> _showAudioFolderPicker(SettingsViewModel viewModel) async {
+    final labels = viewModel.availableAudioFolderDisplayPaths;
+    final selectedIndex = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Folder Select'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: labels.isEmpty
+              ? const Text('No indexed audio folders found.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: labels.length,
+                  itemBuilder: (context, index) => ListTile(
+                    title: Text(labels[index]),
+                    onTap: () => Navigator.of(context).pop(index),
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedIndex == null || !mounted) return;
+
+    final result = viewModel.addAvailableAudioFolder(selectedIndex);
+
+    if (result is SettingsCommandFailure) {
+      _showErrorDialog(result.message);
+    }
+  }
+
   @override
   void dispose() {
     _viewModel?.removeListener(_syncPlayedSongsInput);
@@ -119,9 +152,9 @@ class _SettingsViewState extends State<SettingsView> {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemCount: viewModel.storageLocations.length,
+      itemCount: viewModel.storageLocationDisplayPaths.length,
       itemBuilder: (context, index) {
-        final storageLocation = viewModel.storageLocations[index];
+        final storageLocation = viewModel.storageLocationDisplayPaths[index];
         return ListTile(
           title: Text(
             storageLocation,
@@ -129,10 +162,10 @@ class _SettingsViewState extends State<SettingsView> {
             overflow: TextOverflow.ellipsis,
             softWrap: true,
           ),
-          trailing: viewModel.selectedStoragePath == storageLocation
+          trailing: viewModel.selectedStorageLocationIndex == index
               ? getDefaultIconWidget(context, Icons.check)
               : null,
-          onTap: () => viewModel.selectStoragePath(storageLocation),
+          onTap: () => viewModel.selectStorageLocation(index),
         );
       },
     );
@@ -211,28 +244,7 @@ class _SettingsViewState extends State<SettingsView> {
                     Row(
                       children: [
                         ElevatedButton(
-                          onPressed: () async {
-                            final selectedPath = await FilesystemPicker.open(
-                              title: 'Folder Select',
-                              context: context,
-                              rootDirectory: Directory.fromUri(
-                                Uri(path: '/storage/emulated/0'),
-                              ),
-                              fsType: FilesystemType.folder,
-                              pickText: 'Add selected folder',
-                              fileTileSelectMode: FileTileSelectMode.wholeTile,
-                              itemFilter: (_, path, __) =>
-                                  StoragePathPolicy.canDisplayInPicker(path),
-                            );
-                            if (selectedPath == null || !mounted) {
-                              return;
-                            }
-                            final result =
-                                viewModel.addStoragePath(selectedPath);
-                            if (result is SettingsCommandFailure) {
-                              _showErrorDialog(result.message);
-                            }
-                          },
+                          onPressed: () => _showAudioFolderPicker(viewModel),
                           child: Text(
                             '+',
                             style: TextStyle(

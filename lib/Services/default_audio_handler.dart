@@ -128,7 +128,7 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
     _skipToPreviousHandler = skipToPrevious;
   }
 
-  Future<void> playNew(MediaItem item, String path) async {
+  Future<void> playNew(MediaItem item, Uri sourceUri) async {
     if (_disposed) {
       return;
     }
@@ -140,7 +140,7 @@ final class DefaultAudioHandler extends BaseAudioHandler with QueueHandler {
         return;
       }
 
-      final AudioSource source = AudioSource.file(path, tag: item);
+      final AudioSource source = AudioSource.uri(sourceUri, tag: item);
       await _player.setAudioSource(source);
       if (request != _playRequest || _disposed) {
         return;

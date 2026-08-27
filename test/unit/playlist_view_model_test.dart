@@ -68,9 +68,9 @@ void main() {
       settingsSnapshotRepository = FakeSettingsSnapshotRepository();
       isViewModelDisposed = false;
       songs = [
-        createSong('/music/gamma.mp3'),
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
+        createSong('content://test/audio/music/gamma.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
       ];
       playlistManager = PlaylistManager(
         playlistRepository: playlistRepository,
@@ -163,7 +163,8 @@ void main() {
       ]);
       expect(observedCollections.single, <String>['alpha', 'beta', 'gamma']);
       expect(
-        () => viewModel.allSongs.add(createSong('/music/new.mp3')),
+        () => viewModel.allSongs
+            .add(createSong('content://test/audio/music/new.mp3')),
         throwsUnsupportedError,
       );
     });
@@ -207,7 +208,7 @@ void main() {
         () async {
       final selected = songs[1];
       await viewModel.selectSong(selected);
-      final replacement = createSong(selected.filePath);
+      final replacement = createSong(selected.sourceUri.toString());
       musicFileRepository.songs = <MusicFile>[replacement];
 
       await viewModel.initialize();
@@ -218,7 +219,9 @@ void main() {
     test('stops and clears selection when its path is no longer loaded',
         () async {
       await viewModel.selectSong(songs[1]);
-      musicFileRepository.songs = <MusicFile>[createSong('/music/other.mp3')];
+      musicFileRepository.songs = <MusicFile>[
+        createSong('content://test/audio/music/other.mp3')
+      ];
       clearInteractions(soundPlayer);
 
       await viewModel.initialize();
@@ -247,7 +250,7 @@ void main() {
       final playlistId = (await playlistRepository.create('Focus')).id;
       await playlistRepository.addSong(
         playlistId,
-        '/music/beta.mp3',
+        'content://test/audio/music/beta.mp3',
       );
       await viewModel.initialize();
       clearInteractions(soundPlayer);
@@ -267,7 +270,7 @@ void main() {
       final playlistId = (await playlistRepository.create('Focus')).id;
       await playlistRepository.addSong(
         playlistId,
-        songs[1].filePath,
+        songs[1].sourceUri.toString(),
       );
       await viewModel.initialize();
       await viewModel.selectSong(songs.first);
@@ -311,7 +314,7 @@ void main() {
     test('completed playback advances and wraps when looping is off', () async {
       final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await playlistRepository.addSong(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.sourceUri.toString());
       }
       await playlistManager.switchToPlaylist('Focus');
       await viewModel.initialize();
@@ -334,7 +337,7 @@ void main() {
         () async {
       final playlistId = (await playlistRepository.create('Focus')).id;
       for (final song in songs) {
-        await playlistRepository.addSong(playlistId, song.filePath);
+        await playlistRepository.addSong(playlistId, song.sourceUri.toString());
       }
       await playlistManager.switchToPlaylist('Focus');
       await viewModel.initialize();
@@ -363,7 +366,7 @@ void main() {
       final playlistId = (await playlistRepository.create('Focus')).id;
       await playlistRepository.addSong(
         playlistId,
-        songs.first.filePath,
+        songs.first.sourceUri.toString(),
       );
       await playlistManager.switchToPlaylist('Focus');
       await viewModel.initialize();

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:strayker_media_store/strayker_media_store.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
@@ -19,15 +20,29 @@ void main() {
       playlistManager = PlaylistManager(
         playlistRepository: playlistRepository,
         allSongs: [
-          createSong('/music/alpha.mp3'),
-          createSong('/music/beta.mp3'),
-          createSong('/music/gamma.mp3'),
+          createSong('content://test/audio/music/alpha.mp3'),
+          createSong('content://test/audio/music/beta.mp3'),
+          createSong('content://test/audio/music/gamma.mp3'),
         ],
       );
       viewModel = SettingsViewModel(
         settingsSnapshotRepository: settingsSnapshotRepository,
         playlistManager: playlistManager,
         loadedSongCount: 3,
+        audioFolderLoader: () async => const <AudioFolder>[
+          AudioFolder(
+            sourceId: 'mediastore://external_primary/Music/',
+            displayPath: '/storage/emulated/0/Music',
+            volumeName: 'external_primary',
+            relativePath: 'Music/',
+          ),
+          AudioFolder(
+            sourceId: 'mediastore://external_primary/Custom/',
+            displayPath: '/storage/emulated/0/Custom',
+            volumeName: 'external_primary',
+            relativePath: 'Custom/',
+          ),
+        ],
       );
     });
 
@@ -42,8 +57,8 @@ void main() {
       expect(viewModel.playedSongsMaxAmountText, '0');
       expect(viewModel.playedSongsMaxAllowed, 2);
       expect(
-        viewModel.storageLocations,
-        ['/storage/emulated/0/Music'],
+        viewModel.storageLocationDisplayPaths,
+        ['Music'],
       );
       expect(viewModel.playlists.single.name, 'Focus');
     });
@@ -64,24 +79,23 @@ void main() {
       expect(viewModel.playedSongsMaxAmountText, '2');
     });
 
-    test('validates and mutates storage paths', () {
-      final failure = viewModel.addStoragePath('/storage/emulated/0/Android');
+    test('accepts only adapter-provided audio folders', () async {
+      await viewModel.load();
+      final failure = viewModel.addAvailableAudioFolder(99);
 
       expect(failure, isA<SettingsCommandFailure>());
-      expect(
-        (failure as SettingsCommandFailure).message,
-        'This folder is restricted by the system. Select a media folder such as Music, Download, or another folder outside Android.',
-      );
 
       expect(
-        viewModel.addStoragePath('/music/custom'),
+        viewModel.addAvailableAudioFolder(1),
         isA<SettingsCommandSuccess>(),
       );
-      viewModel.selectStoragePath('/music/custom');
+      viewModel.selectStorageLocation(1);
       viewModel.removeSelectedStoragePath();
 
-      expect(viewModel.storageLocations, isEmpty);
-      expect(viewModel.selectedStoragePath, isNull);
+      expect(viewModel.storageLocationDisplayPaths, [
+        'Music',
+      ]);
+      expect(viewModel.selectedStorageLocationIndex, isNull);
     });
 
     test('validates duplicate playlists and creates and deletes selection',
@@ -111,24 +125,30 @@ void main() {
     test('save persists state and defaults persist immediately', () async {
       await viewModel.load();
       viewModel.setPlayedSongsMaxAmountFromText('2');
-      viewModel.addStoragePath('/music/custom');
+      viewModel.addAvailableAudioFolder(1);
 
       await viewModel.save();
 
       expect(settingsSnapshotRepository.snapshot.playedSongsMaxAmount, 2);
       expect(
         settingsSnapshotRepository.snapshot.storageLocations,
-        ['/storage/emulated/0/Music', '/music/custom'],
+        [
+          'mediastore://external_primary/Music/',
+          'mediastore://external_primary/Custom/',
+        ],
       );
 
       await viewModel.restoreDefaults();
 
       expect(viewModel.playedSongsMaxAmount, 0);
-      expect(viewModel.storageLocations, ['/storage/emulated/0/Music']);
+      expect(
+        viewModel.storageLocationDisplayPaths,
+        ['Music'],
+      );
       expect(settingsSnapshotRepository.snapshot.playedSongsMaxAmount, 0);
       expect(
         settingsSnapshotRepository.snapshot.storageLocations,
-        ['/storage/emulated/0/Music'],
+        ['mediastore://external_primary/Music/'],
       );
     });
 
@@ -149,7 +169,7 @@ void main() {
         () async {
       await viewModel.load();
       viewModel.setPlayedSongsMaxAmountFromText('2');
-      viewModel.addStoragePath('/music/custom');
+      viewModel.addAvailableAudioFolder(1);
       settingsSnapshotRepository.saveError = StateError('read-only');
 
       final result = await viewModel.restoreDefaults();
@@ -160,7 +180,10 @@ void main() {
         'Failed to restore defaults: Bad state: read-only',
       );
       expect(viewModel.playedSongsMaxAmount, 0);
-      expect(viewModel.storageLocations, ['/storage/emulated/0/Music']);
+      expect(
+        viewModel.storageLocationDisplayPaths,
+        ['Music'],
+      );
       expect(viewModel.isPersistenceInProgress, isFalse);
     });
 
@@ -184,24 +207,27 @@ void main() {
     test('load replaces local storage paths from the persisted snapshot',
         () async {
       await viewModel.load();
-      viewModel.addStoragePath('/music/unsaved');
+      viewModel.addAvailableAudioFolder(1);
 
       await viewModel.load();
 
-      expect(viewModel.storageLocations, ['/storage/emulated/0/Music']);
+      expect(
+        viewModel.storageLocationDisplayPaths,
+        ['Music'],
+      );
     });
 
     test('playlist creation preserves unsaved settings edits', () async {
       await viewModel.load();
       viewModel.setPlayedSongsMaxAmountFromText('2');
-      viewModel.addStoragePath('/music/unsaved');
+      viewModel.addAvailableAudioFolder(1);
 
       await viewModel.createPlaylist('Focus');
 
       expect(viewModel.playedSongsMaxAmount, 2);
       expect(
-        viewModel.storageLocations,
-        ['/storage/emulated/0/Music', '/music/unsaved'],
+        viewModel.storageLocationDisplayPaths,
+        ['Music', 'Custom'],
       );
       expect(viewModel.playlists.single.name, 'Focus');
     });
@@ -210,15 +236,15 @@ void main() {
       await playlistRepository.create('Focus');
       await viewModel.load();
       viewModel.setPlayedSongsMaxAmountFromText('2');
-      viewModel.addStoragePath('/music/unsaved');
+      viewModel.addAvailableAudioFolder(1);
       viewModel.selectPlaylist('Focus');
 
       await viewModel.deleteSelectedPlaylist();
 
       expect(viewModel.playedSongsMaxAmount, 2);
       expect(
-        viewModel.storageLocations,
-        ['/storage/emulated/0/Music', '/music/unsaved'],
+        viewModel.storageLocationDisplayPaths,
+        ['Music', 'Custom'],
       );
       expect(viewModel.playlists, isEmpty);
       expect(viewModel.selectedPlaylistName, isNull);

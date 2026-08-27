@@ -25,14 +25,17 @@ void main() {
       );
       expect(
         await databaseHelper.queryStorageLocations(),
-        ['/storage/emulated/0/Music'],
+        ['mediastore://external_primary/Music/'],
       );
     });
 
     test('replaces settings and storage locations atomically', () async {
       await databaseHelper.replaceSettingsData(
         playedSongsMaxAmount: 2,
-        storageLocations: ['/music/rock', '/music/jazz'],
+        storageLocations: [
+          'mediastore://external_primary/Rock/',
+          'mediastore://external_primary/Jazz/',
+        ],
       );
 
       expect(
@@ -41,7 +44,10 @@ void main() {
       );
       expect(
         await databaseHelper.queryStorageLocations(),
-        ['/music/rock', '/music/jazz'],
+        [
+          'mediastore://external_primary/Rock/',
+          'mediastore://external_primary/Jazz/',
+        ],
       );
     });
 
@@ -49,8 +55,14 @@ void main() {
         () async {
       final playlistId = await databaseHelper.insertPlaylist('Road Trip');
 
-      await databaseHelper.insertPlaylistSong(playlistId, '/songs/one.mp3');
-      await databaseHelper.insertPlaylistSong(playlistId, '/songs/two.mp3');
+      await databaseHelper.insertPlaylistSong(
+        playlistId,
+        'content://media/external_primary/audio/media/1',
+      );
+      await databaseHelper.insertPlaylistSong(
+        playlistId,
+        'content://media/external_primary/audio/media/2',
+      );
 
       expect(await databaseHelper.queryPlaylists(), [
         {'id': playlistId, 'name': 'Road Trip'},
@@ -61,26 +73,34 @@ void main() {
       );
       expect(
         await databaseHelper.queryPlaylistSongPaths(playlistId),
-        ['/songs/one.mp3', '/songs/two.mp3'],
+        [
+          'content://media/external_primary/audio/media/1',
+          'content://media/external_primary/audio/media/2',
+        ],
       );
       expect(
         await databaseHelper.queryPlaylistContainsSong(
           playlistId,
-          '/songs/one.mp3',
+          'content://media/external_primary/audio/media/1',
         ),
         isTrue,
       );
       expect(
-        await databaseHelper.queryPlaylistsContainingSong('/songs/two.mp3'),
+        await databaseHelper.queryPlaylistsContainingSong(
+          'content://media/external_primary/audio/media/2',
+        ),
         [
           {'id': playlistId, 'name': 'Road Trip'},
         ],
       );
 
-      await databaseHelper.deletePlaylistSong(playlistId, '/songs/one.mp3');
+      await databaseHelper.deletePlaylistSong(
+        playlistId,
+        'content://media/external_primary/audio/media/1',
+      );
       expect(
         await databaseHelper.queryPlaylistSongPaths(playlistId),
-        ['/songs/two.mp3'],
+        ['content://media/external_primary/audio/media/2'],
       );
 
       await databaseHelper.deletePlaylist(playlistId);

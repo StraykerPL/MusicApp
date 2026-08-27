@@ -88,10 +88,10 @@ final class SoundCollectionManager {
   }
 
   void reconcileSongs(List<MusicFile> availableSongs) {
-    final Set<String> availablePaths =
-        availableSongs.map((MusicFile song) => song.filePath).toSet();
+    final Set<Uri> availablePaths =
+        availableSongs.map((MusicFile song) => song.sourceUri).toSet();
     _playedSongs.removeWhere(
-      (MusicFile song) => !availablePaths.contains(song.filePath),
+      (MusicFile song) => !availablePaths.contains(song.sourceUri),
     );
   }
 

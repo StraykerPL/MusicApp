@@ -49,7 +49,7 @@ void main() {
     });
 
     test('playNewSong loads and starts selected song', () async {
-      final song = createSong('/music/alpha.mp3');
+      final song = createSong('content://test/audio/music/alpha.mp3');
 
       await soundPlayer.playNewSong(song);
 

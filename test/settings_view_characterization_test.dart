@@ -22,9 +22,9 @@ void main() {
       settingsSnapshotRepository = FakeSettingsSnapshotRepository();
       playlistRepository = FakePlaylistRepository();
       songs = [
-        createSong('/music/alpha.mp3'),
-        createSong('/music/beta.mp3'),
-        createSong('/music/gamma.mp3'),
+        createSong('content://test/audio/music/alpha.mp3'),
+        createSong('content://test/audio/music/beta.mp3'),
+        createSong('content://test/audio/music/gamma.mp3'),
       ];
       playlistManager = PlaylistManager(
         playlistRepository: playlistRepository,
@@ -112,7 +112,7 @@ void main() {
         (tester) async {
       settingsSnapshotRepository.snapshot = SettingsSnapshot(
         playedSongsMaxAmount: 2,
-        storageLocations: ['/music/custom'],
+        storageLocations: ['mediastore://external_primary/Custom/'],
       );
       await tester.pumpWidget(testApp(home: const SettingsView()));
       await tester.pumpAndSettle();
@@ -124,10 +124,13 @@ void main() {
 
       expect(find.text('Settings'), findsOneWidget);
       expect(find.widgetWithText(TextField, '0'), findsOneWidget);
+      expect(find.text('Music'), findsOneWidget);
+      expect(find.textContaining('mediastore://'), findsNothing);
+      expect(find.textContaining('content://'), findsNothing);
       expect(await savedMaximum(), '0');
       expect(
         settingsSnapshotRepository.snapshot.storageLocations,
-        ['/storage/emulated/0/Music'],
+        ['mediastore://external_primary/Music/'],
       );
     });
 

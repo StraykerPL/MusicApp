@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as path;
 import 'package:strayker_music/Constants/constants.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Models/playlist.dart';
@@ -84,12 +83,11 @@ final class PlaylistManager with ChangeNotifier {
       return List.from(allSongs);
     }
 
-    final Set<String> playlistSongPaths = (await getPlaylistSongs(playlist.id))
-        .map((String songPath) => path.normalize(path.absolute(songPath)))
-        .toSet();
+    final Set<String> playlistSongPaths =
+        (await getPlaylistSongs(playlist.id)).toSet();
 
     return allSongs
-        .where((song) => playlistSongPaths.contains(song.filePath))
+        .where((song) => playlistSongPaths.contains(song.sourceUri.toString()))
         .toList();
   }
 

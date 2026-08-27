@@ -24,19 +24,28 @@ void main() {
     final snapshot = await repository.get();
 
     expect(snapshot.playedSongsMaxAmount, 0);
-    expect(snapshot.storageLocations, ['/storage/emulated/0/Music']);
+    expect(
+      snapshot.storageLocations,
+      ['mediastore://external_primary/Music/'],
+    );
   });
 
   test('saves all snapshot values', () async {
     await repository.save(
       SettingsSnapshot(
         playedSongsMaxAmount: 2,
-        storageLocations: ['/music/one', '/music/two'],
+        storageLocations: [
+          'mediastore://external_primary/Music/',
+          'mediastore://external_primary/Podcasts/',
+        ],
       ),
     );
 
     final snapshot = await repository.get();
     expect(snapshot.playedSongsMaxAmount, 2);
-    expect(snapshot.storageLocations, ['/music/one', '/music/two']);
+    expect(snapshot.storageLocations, [
+      'mediastore://external_primary/Music/',
+      'mediastore://external_primary/Podcasts/',
+    ]);
   });
 }
