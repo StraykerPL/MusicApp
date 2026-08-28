@@ -1,9 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strayker_media_store/strayker_media_store.dart';
+import 'package:strayker_music/Models/audio_document.dart';
+import 'package:strayker_music/Models/audio_permission_result.dart';
+import 'package:strayker_music/Models/audio_scan_result.dart';
+import 'package:strayker_music/Services/media_store_service.dart';
 import 'package:strayker_music/Models/storage_permission_denied_exception.dart';
 import 'package:strayker_music/Repositories/music_file_repository.dart';
 
-final class FakeMediaStore extends StraykerMediaStore {
+final class FakeMediaStore extends MediaStoreService {
   FakeMediaStore({
     this.permission = AudioPermissionResult.granted,
     this.scan = const AudioScanResult(

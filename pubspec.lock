@@ -637,13 +637,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.1"
-  strayker_media_store:
-    dependency: "direct main"
-    description:
-      path: "packages/strayker_media_store"
-      relative: true
-    source: path
-    version: "0.0.1"
   stream_channel:
     dependency: transitive
     description:

@@ -1,4 +1,4 @@
-package pl.straykersoftware.strayker_media_store
+package pl.straykersoftware.strayker_music
 
 import android.Manifest
 import android.app.Activity

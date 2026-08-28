@@ -45,8 +45,6 @@ dependencies:
   audio_service: ^0.18.17
   provider: ^6.1.4
   uuid: ^4.5.3
-  strayker_media_store:
-    path: packages/strayker_media_store
 
 dev_dependencies:
   flutter_test:

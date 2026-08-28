@@ -1,7 +1,8 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
-import 'package:strayker_media_store/strayker_media_store.dart';
+import 'package:strayker_music/Models/audio_folder.dart';
+import 'package:strayker_music/Services/media_store_service.dart';
 import 'package:strayker_music/Services/database_helper.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/playlist.dart';
@@ -38,7 +39,7 @@ final class SettingsViewModel extends ChangeNotifier {
   })  : _settingsSnapshotRepository = settingsSnapshotRepository,
         _playlistManager = playlistManager,
         _audioFolderLoader =
-            audioFolderLoader ?? const StraykerMediaStore().listAudioFolders,
+            audioFolderLoader ?? const MediaStoreService().listAudioFolders,
         playedSongsMaxAllowed = loadedSongCount > 1 ? loadedSongCount - 1 : 0;
 
   final SettingsSnapshotRepository _settingsSnapshotRepository;

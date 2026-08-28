@@ -1,13 +1,14 @@
-import 'package:strayker_media_store/strayker_media_store.dart';
+import 'package:strayker_music/Models/audio_permission_result.dart';
+import 'package:strayker_music/Services/media_store_service.dart';
 import 'package:strayker_music/Models/music_file.dart';
 import 'package:strayker_music/Models/music_scan_result.dart';
 import 'package:strayker_music/Models/storage_permission_denied_exception.dart';
 
 class MusicFileRepository {
-  MusicFileRepository({StraykerMediaStore? mediaStore})
-      : _mediaStore = mediaStore ?? const StraykerMediaStore();
+  MusicFileRepository({MediaStoreService? mediaStore})
+      : _mediaStore = mediaStore ?? const MediaStoreService();
 
-  final StraykerMediaStore _mediaStore;
+  final MediaStoreService _mediaStore;
 
   Future<MusicScanResult> getAll(List<String> storageLocations) async {
     final permissionResult = await _mediaStore.requestRequiredAudioPermission();

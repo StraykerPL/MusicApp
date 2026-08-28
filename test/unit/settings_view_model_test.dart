@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strayker_media_store/strayker_media_store.dart';
+import 'package:strayker_music/Models/audio_folder.dart';
 import 'package:strayker_music/Services/playlist_manager.dart';
 import 'package:strayker_music/Models/settings_snapshot.dart';
 import 'package:strayker_music/ViewModels/settings_view_model.dart';
